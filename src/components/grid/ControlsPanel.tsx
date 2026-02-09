@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Download, Copy } from 'lucide-react';
 import { exportSVG, exportPNG, copySVGToClipboard } from '@/lib/vectorRenderer';
+import type { CellRadiusLookup } from '@/lib/vectorRenderer';
 import { toast } from '@/hooks/use-toast';
 
 interface ControlsPanelProps {
@@ -12,11 +13,12 @@ interface ControlsPanelProps {
   innerRadius: number;
   onCornerRadiusChange: (v: number) => void;
   onInnerRadiusChange: (v: number) => void;
+  cellRadiusLookup?: CellRadiusLookup;
 }
 
 const ControlsPanel: React.FC<ControlsPanelProps> = ({
   grid, cornerRadius, innerRadius,
-  onCornerRadiusChange, onInnerRadiusChange,
+  onCornerRadiusChange, onInnerRadiusChange, cellRadiusLookup,
 }) => {
   const [pngScale, setPngScale] = useState('1');
 
@@ -24,7 +26,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
     <div className="flex flex-col gap-4 p-4 bg-card rounded-lg border border-border">
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-          Corner Radius — {Math.round(cornerRadius * 200)}%
+          Global Corner Radius — {Math.round(cornerRadius * 200)}%
         </label>
         <Slider
           value={[cornerRadius]}
@@ -35,7 +37,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
 
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-          Inner Radius (Metaball) — {Math.round(innerRadius * 200)}%
+          Global Inner Radius (Metaball) — {Math.round(innerRadius * 200)}%
         </label>
         <Slider
           value={[innerRadius]}
@@ -50,7 +52,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
         <span className="text-xs font-medium text-muted-foreground">Export</span>
         <Button
           variant="secondary" size="sm"
-          onClick={() => exportSVG(grid, cornerRadius, innerRadius)}
+          onClick={() => exportSVG(grid, cornerRadius, innerRadius, cellRadiusLookup)}
         >
           <Download className="h-4 w-4 mr-1.5" /> Download SVG
         </Button>
@@ -58,7 +60,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
         <div className="flex gap-2">
           <Button
             variant="secondary" size="sm" className="flex-1"
-            onClick={() => exportPNG(grid, cornerRadius, innerRadius, Number(pngScale))}
+            onClick={() => exportPNG(grid, cornerRadius, innerRadius, Number(pngScale), cellRadiusLookup)}
           >
             <Download className="h-4 w-4 mr-1.5" /> PNG
           </Button>
@@ -77,7 +79,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
         <Button
           variant="outline" size="sm"
           onClick={async () => {
-            await copySVGToClipboard(grid, cornerRadius, innerRadius);
+            await copySVGToClipboard(grid, cornerRadius, innerRadius, cellRadiusLookup);
             toast({ title: 'SVG copied to clipboard' });
           }}
         >

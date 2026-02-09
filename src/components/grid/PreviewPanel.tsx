@@ -1,19 +1,21 @@
 import React, { useMemo } from 'react';
 import { generateSVGPathData } from '@/lib/vectorRenderer';
+import type { CellRadiusLookup } from '@/lib/vectorRenderer';
 
 interface PreviewPanelProps {
   grid: boolean[][];
   gridSize: number;
   cornerRadius: number;
   innerRadius: number;
+  cellRadiusLookup?: CellRadiusLookup;
 }
 
 const PreviewPanel: React.FC<PreviewPanelProps> = ({
-  grid, gridSize, cornerRadius, innerRadius,
+  grid, gridSize, cornerRadius, innerRadius, cellRadiusLookup,
 }) => {
   const pathData = useMemo(
-    () => generateSVGPathData(grid, cornerRadius, 1, 1, innerRadius),
-    [grid, cornerRadius, innerRadius]
+    () => generateSVGPathData(grid, cornerRadius, 1, 1, innerRadius, cellRadiusLookup),
+    [grid, cornerRadius, innerRadius, cellRadiusLookup]
   );
 
   return (
