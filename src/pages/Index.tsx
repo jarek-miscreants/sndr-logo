@@ -8,7 +8,6 @@ import CellEditorPanel from '@/components/grid/CellEditorPanel';
 import type { Tool } from '@/hooks/useGridState';
 import type { CellRadiusLookup } from '@/lib/vectorRenderer';
 
-// Grid Shape Generator v3
 const Index = () => {
   const state = useGridState();
 
@@ -23,7 +22,6 @@ const Index = () => {
     };
   }, [state.cellSettings, state.cornerRadius, state.innerRadius]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -47,7 +45,8 @@ const Index = () => {
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
       <Toolbar
         tool={state.tool}
-        gridSize={state.gridSize}
+        gridRows={state.gridRows}
+        gridCols={state.gridCols}
         canUndo={state.canUndo}
         canRedo={state.canRedo}
         onToolChange={state.setTool}
@@ -59,11 +58,11 @@ const Index = () => {
       />
 
       <div className="flex flex-1 min-h-0">
-        {/* Grid Editor */}
         <div className="flex-1 min-w-0">
           <PixelGrid
             grid={state.grid}
-            gridSize={state.gridSize}
+            gridRows={state.gridRows}
+            gridCols={state.gridCols}
             cornerRadius={state.cornerRadius}
             innerRadius={state.innerRadius}
             previewCells={state.previewCells}
@@ -75,12 +74,10 @@ const Index = () => {
           />
         </div>
 
-        {/* Right Panel */}
         <div className="w-80 flex flex-col gap-3 p-3 border-l border-border overflow-y-auto">
           <div className="flex-1 min-h-[200px]">
             <PreviewPanel
               grid={state.grid}
-              gridSize={state.gridSize}
               cornerRadius={state.cornerRadius}
               innerRadius={state.innerRadius}
               cellRadiusLookup={cellRadiusLookup}

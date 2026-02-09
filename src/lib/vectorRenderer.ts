@@ -188,17 +188,43 @@ export function generateSVGPathData(
   return pathParts.join(' ');
 }
 
+export interface FilledBounds {
+  minR: number; maxR: number; minC: number; maxC: number;
+}
+
+export function getFilledBounds(grid: boolean[][]): FilledBounds | null {
+  const rows = grid.length;
+  const cols = grid[0]?.length || 0;
+  let minR = rows, maxR = -1, minC = cols, maxC = -1;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (grid[r][c]) {
+        if (r < minR) minR = r;
+        if (r > maxR) maxR = r;
+        if (c < minC) minC = c;
+        if (c > maxC) maxC = c;
+      }
+    }
+  }
+  if (maxR === -1) return null;
+  return { minR, maxR: maxR + 1, minC, maxC: maxC + 1 };
+}
+
 export function generateSVGMarkup(
   grid: boolean[][],
   radius: number,
   innerRadius: number = 0,
   cellRadiusLookup?: CellRadiusLookup
 ): string {
-  const rows = grid.length;
-  const cols = grid[0]?.length || 0;
   const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup);
+  const bounds = getFilledBounds(grid);
+  if (!bounds || !pathData) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" width="20" height="20"></svg>`;
+  }
+  const w = bounds.maxC - bounds.minC;
+  const h = bounds.maxR - bounds.minR;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols} ${rows}" width="${cols * 20}" height="${rows * 20}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.minC} ${bounds.minR} ${w} ${h}" width="${w * 20}" height="${h * 20}">
   <path d="${pathData}" fill="black" fill-rule="evenodd"/>
 </svg>`;
 }
@@ -220,15 +246,17 @@ export function exportPNG(
   pixelScale: number = 1,
   cellRadiusLookup?: CellRadiusLookup
 ): void {
-  const rows = grid.length;
-  const cols = grid[0]?.length || 0;
+  const bounds = getFilledBounds(grid);
+  if (!bounds) return;
+  const bw = bounds.maxC - bounds.minC;
+  const bh = bounds.maxR - bounds.minR;
   const baseSize = 512;
-  const aspect = cols / rows;
+  const aspect = bw / bh;
   const width = Math.round(aspect >= 1 ? baseSize * pixelScale : baseSize * pixelScale * aspect);
   const height = Math.round(aspect >= 1 ? baseSize * pixelScale / aspect : baseSize * pixelScale);
   const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup);
 
-  const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols} ${rows}" width="${width}" height="${height}">
+  const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.minC} ${bounds.minR} ${bw} ${bh}" width="${width}" height="${height}">
     <path d="${pathData}" fill="black" fill-rule="evenodd"/>
   </svg>`;
 
