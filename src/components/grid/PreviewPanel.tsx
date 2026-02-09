@@ -19,7 +19,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
   );
 
   return (
-    <div className="flex items-center justify-center w-full h-full bg-card rounded-lg border border-border p-4">
+    <div className="flex items-center justify-center w-full h-full bg-card border border-border p-4">
       {pathData ? (
         <svg
           viewBox={`0 0 ${gridSize} ${gridSize}`}
