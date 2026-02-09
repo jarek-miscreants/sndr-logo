@@ -23,7 +23,7 @@ const CellEditorPanel: React.FC<CellEditorPanelProps> = ({
   const hasOverride = cellSettings !== undefined;
 
   return (
-    <div className="flex flex-col gap-3 p-4 bg-card rounded-lg border-2 border-primary/50">
+    <div className="flex flex-col gap-3 p-4 bg-card border-2 border-accent/40">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-foreground">
           Cell ({selectedCell.c}, {selectedCell.r})

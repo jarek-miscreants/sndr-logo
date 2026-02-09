@@ -75,7 +75,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
 
     // Selected cell highlight
     if (selectedCell && selectedCell.r >= 0 && selectedCell.r < gridSize && selectedCell.c >= 0 && selectedCell.c < gridSize) {
-      ctx.strokeStyle = '#f59e0b';
+      ctx.strokeStyle = '#569378';
       ctx.lineWidth = 2;
       ctx.strokeRect(selectedCell.c * cellSize + 1, selectedCell.r * cellSize + 1, cellSize - 2, cellSize - 2);
     }
@@ -128,7 +128,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
     <div ref={containerRef} className="flex items-center justify-center w-full h-full p-4 overflow-hidden">
       <canvas
         ref={canvasRef}
-        className="cursor-crosshair rounded shadow-lg"
+        className="cursor-crosshair shadow-sm"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

@@ -23,7 +23,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
   const [pngScale, setPngScale] = useState('1');
 
   return (
-    <div className="flex flex-col gap-4 p-4 bg-card rounded-lg border border-border">
+    <div className="flex flex-col gap-4 p-4 bg-card border border-border">
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
           Global Corner Radius — {Math.round(cornerRadius * 200)}%
