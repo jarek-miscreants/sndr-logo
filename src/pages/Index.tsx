@@ -50,6 +50,7 @@ const Index = () => {
             grid={state.grid}
             gridSize={state.gridSize}
             cornerRadius={state.cornerRadius}
+            innerRadius={state.innerRadius}
             previewCells={state.previewCells}
             onCellDown={state.handleCellDown}
             onCellMove={state.handleCellMove}
@@ -64,18 +65,15 @@ const Index = () => {
               grid={state.grid}
               gridSize={state.gridSize}
               cornerRadius={state.cornerRadius}
-              stretchX={state.stretchX}
-              stretchY={state.stretchY}
+              innerRadius={state.innerRadius}
             />
           </div>
           <ControlsPanel
             grid={state.grid}
             cornerRadius={state.cornerRadius}
-            stretchX={state.stretchX}
-            stretchY={state.stretchY}
+            innerRadius={state.innerRadius}
             onCornerRadiusChange={state.setCornerRadius}
-            onStretchXChange={state.setStretchX}
-            onStretchYChange={state.setStretchY}
+            onInnerRadiusChange={state.setInnerRadius}
           />
         </div>
       </div>

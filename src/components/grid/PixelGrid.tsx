@@ -5,6 +5,7 @@ interface PixelGridProps {
   grid: boolean[][];
   gridSize: number;
   cornerRadius: number;
+  innerRadius: number;
   previewCells: { r: number; c: number }[];
   onCellDown: (r: number, c: number) => void;
   onCellMove: (r: number, c: number) => void;
@@ -12,7 +13,7 @@ interface PixelGridProps {
 }
 
 const PixelGrid: React.FC<PixelGridProps> = ({
-  grid, gridSize, cornerRadius, previewCells, onCellDown, onCellMove, onCellUp,
+  grid, gridSize, cornerRadius, innerRadius, previewCells, onCellDown, onCellMove, onCellUp,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,7 +52,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
     ctx.fillRect(0, 0, canvasW, canvasH);
 
     // Filled cells as vector path with corner rounding
-    const pathData = generateSVGPathData(grid, cornerRadius, cellSize, cellSize);
+    const pathData = generateSVGPathData(grid, cornerRadius, cellSize, cellSize, innerRadius);
     if (pathData) {
       ctx.fillStyle = '#1a1b2e';
       const path = new Path2D(pathData);
@@ -81,7 +82,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
       ctx.lineTo(canvasW, i * cellSize);
       ctx.stroke();
     }
-  }, [grid, gridSize, cellSize, previewCells, cornerRadius]);
+  }, [grid, gridSize, cellSize, previewCells, cornerRadius, innerRadius]);
 
   const getCoords = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current!.getBoundingClientRect();
