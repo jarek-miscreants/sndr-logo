@@ -49,6 +49,7 @@ const Index = () => {
           <PixelGrid
             grid={state.grid}
             gridSize={state.gridSize}
+            cornerRadius={state.cornerRadius}
             previewCells={state.previewCells}
             onCellDown={state.handleCellDown}
             onCellMove={state.handleCellMove}
