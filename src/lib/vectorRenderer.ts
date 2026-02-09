@@ -31,9 +31,9 @@ function findBoundaryEdges(grid: boolean[][]): Edge[] {
 
 function turnPriority(incoming: Direction, outgoing: Direction): number {
   const { dx, dy } = incoming;
-  if (outgoing.dx === -dy && outgoing.dy === dx) return 0; // right turn
+  if (outgoing.dx === -dy && outgoing.dy === dx) return 0; // right turn (convex)
   if (outgoing.dx === dx && outgoing.dy === dy) return 1; // straight
-  if (outgoing.dx === dy && outgoing.dy === -dx) return 2; // left turn
+  if (outgoing.dx === dy && outgoing.dy === -dx) return 2; // left turn (concave)
   return 3; // back
 }
 
@@ -80,7 +80,8 @@ export function generateSVGPathData(
   grid: boolean[][],
   radius: number,
   scaleX: number = 1,
-  scaleY: number = 1
+  scaleY: number = 1,
+  innerRadius: number = 0
 ): string {
   const edges = findBoundaryEdges(grid);
   if (edges.length === 0) return '';
@@ -88,6 +89,7 @@ export function generateSVGPathData(
   const contours = traceContours(edges);
   const pathParts: string[] = [];
   const r = Math.min(Math.max(radius, 0), 0.5);
+  const ir = Math.min(Math.max(innerRadius, 0), 0.5);
 
   for (const contour of contours) {
     const n = contour.length;
@@ -111,8 +113,9 @@ export function generateSVGPathData(
 
     const segs: string[] = [];
     const first = corners[0];
-    const firstDep = first.isConvex && r > 0
-      ? { x: (first.vertex.x + first.outgoing.dx * r) * scaleX, y: (first.vertex.y + first.outgoing.dy * r) * scaleY }
+    const firstR = first.isConvex ? r : ir;
+    const firstDep = firstR > 0
+      ? { x: (first.vertex.x + first.outgoing.dx * firstR) * scaleX, y: (first.vertex.y + first.outgoing.dy * firstR) * scaleY }
       : { x: first.vertex.x * scaleX, y: first.vertex.y * scaleY };
 
     segs.push(`M${round(firstDep.x)} ${round(firstDep.y)}`);
@@ -120,20 +123,24 @@ export function generateSVGPathData(
     for (let step = 0; step < corners.length; step++) {
       const idx = (step + 1) % corners.length;
       const c = corners[idx];
+      const cr = c.isConvex ? r : ir;
 
-      if (c.isConvex && r > 0) {
+      if (cr > 0) {
         const arr = {
-          x: (c.vertex.x - c.incoming.dx * r) * scaleX,
-          y: (c.vertex.y - c.incoming.dy * r) * scaleY,
+          x: (c.vertex.x - c.incoming.dx * cr) * scaleX,
+          y: (c.vertex.y - c.incoming.dy * cr) * scaleY,
         };
         const dep = {
-          x: (c.vertex.x + c.outgoing.dx * r) * scaleX,
-          y: (c.vertex.y + c.outgoing.dy * r) * scaleY,
+          x: (c.vertex.x + c.outgoing.dx * cr) * scaleX,
+          y: (c.vertex.y + c.outgoing.dy * cr) * scaleY,
         };
-        const rx = r * scaleX;
-        const ry = r * scaleY;
+        const rx = cr * scaleX;
+        const ry = cr * scaleY;
+        // Convex corners: sweep=1 (CW, rounds outward)
+        // Concave corners: sweep=0 (CCW, rounds inward — metaball effect)
+        const sweep = c.isConvex ? 1 : 0;
         segs.push(`L${round(arr.x)} ${round(arr.y)}`);
-        segs.push(`A${round(rx)} ${round(ry)} 0 0 1 ${round(dep.x)} ${round(dep.y)}`);
+        segs.push(`A${round(rx)} ${round(ry)} 0 0 ${sweep} ${round(dep.x)} ${round(dep.y)}`);
       } else {
         segs.push(`L${round(c.vertex.x * scaleX)} ${round(c.vertex.y * scaleY)}`);
       }
@@ -149,22 +156,19 @@ export function generateSVGPathData(
 export function generateSVGMarkup(
   grid: boolean[][],
   radius: number,
-  scaleX: number,
-  scaleY: number
+  innerRadius: number = 0
 ): string {
   const rows = grid.length;
   const cols = grid[0]?.length || 0;
-  const width = cols * scaleX;
-  const height = rows * scaleY;
-  const pathData = generateSVGPathData(grid, radius, scaleX, scaleY);
+  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius);
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width * 20}" height="${height * 20}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols} ${rows}" width="${cols * 20}" height="${rows * 20}">
   <path d="${pathData}" fill="black" fill-rule="evenodd"/>
 </svg>`;
 }
 
-export function exportSVG(grid: boolean[][], radius: number, scaleX: number, scaleY: number): void {
-  const markup = generateSVGMarkup(grid, radius, scaleX, scaleY);
+export function exportSVG(grid: boolean[][], radius: number, innerRadius: number = 0): void {
+  const markup = generateSVGMarkup(grid, radius, innerRadius);
   const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -176,21 +180,18 @@ export function exportSVG(grid: boolean[][], radius: number, scaleX: number, sca
 export function exportPNG(
   grid: boolean[][],
   radius: number,
-  scaleX: number,
-  scaleY: number,
+  innerRadius: number = 0,
   pixelScale: number = 1
 ): void {
   const rows = grid.length;
   const cols = grid[0]?.length || 0;
   const baseSize = 512;
-  const aspect = (cols * scaleX) / (rows * scaleY);
+  const aspect = cols / rows;
   const width = Math.round(aspect >= 1 ? baseSize * pixelScale : baseSize * pixelScale * aspect);
   const height = Math.round(aspect >= 1 ? baseSize * pixelScale / aspect : baseSize * pixelScale);
-  const vbW = cols * scaleX;
-  const vbH = rows * scaleY;
-  const pathData = generateSVGPathData(grid, radius, scaleX, scaleY);
+  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius);
 
-  const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}" width="${width}" height="${height}">
+  const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols} ${rows}" width="${width}" height="${height}">
     <path d="${pathData}" fill="black" fill-rule="evenodd"/>
   </svg>`;
 
@@ -216,8 +217,8 @@ export function exportPNG(
   img.src = url;
 }
 
-export function copySVGToClipboard(grid: boolean[][], radius: number, scaleX: number, scaleY: number): Promise<void> {
-  const markup = generateSVGMarkup(grid, radius, scaleX, scaleY);
+export function copySVGToClipboard(grid: boolean[][], radius: number, innerRadius: number = 0): Promise<void> {
+  const markup = generateSVGMarkup(grid, radius, innerRadius);
   return navigator.clipboard.writeText(markup);
 }
 

@@ -5,26 +5,22 @@ interface PreviewPanelProps {
   grid: boolean[][];
   gridSize: number;
   cornerRadius: number;
-  stretchX: number;
-  stretchY: number;
+  innerRadius: number;
 }
 
 const PreviewPanel: React.FC<PreviewPanelProps> = ({
-  grid, gridSize, cornerRadius, stretchX, stretchY,
+  grid, gridSize, cornerRadius, innerRadius,
 }) => {
   const pathData = useMemo(
-    () => generateSVGPathData(grid, cornerRadius, stretchX, stretchY),
-    [grid, cornerRadius, stretchX, stretchY]
+    () => generateSVGPathData(grid, cornerRadius, 1, 1, innerRadius),
+    [grid, cornerRadius, innerRadius]
   );
-
-  const viewBoxW = gridSize * stretchX;
-  const viewBoxH = gridSize * stretchY;
 
   return (
     <div className="flex items-center justify-center w-full h-full bg-card rounded-lg border border-border p-4">
       {pathData ? (
         <svg
-          viewBox={`0 0 ${viewBoxW} ${viewBoxH}`}
+          viewBox={`0 0 ${gridSize} ${gridSize}`}
           className="w-full h-full max-w-full max-h-full"
           preserveAspectRatio="xMidYMid meet"
         >

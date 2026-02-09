@@ -16,8 +16,7 @@ export function useGridState() {
   const [grid, setGrid] = useState(() => createEmptyGrid(16));
   const [tool, setTool] = useState<Tool>('pencil');
   const [cornerRadius, setCornerRadius] = useState(0.25);
-  const [stretchX, setStretchX] = useState(1);
-  const [stretchY, setStretchY] = useState(1);
+  const [innerRadius, setInnerRadius] = useState(0);
 
   const [history, setHistory] = useState<boolean[][][]>([]);
   const [future, setFuture] = useState<boolean[][][]>([]);
@@ -141,8 +140,8 @@ export function useGridState() {
   }, [tool, previewCells, gridSize, pushHistory]);
 
   return {
-    grid, gridSize, tool, cornerRadius, stretchX, stretchY, previewCells,
-    setTool, setGridSize, setCornerRadius, setStretchX, setStretchY,
+    grid, gridSize, tool, cornerRadius, innerRadius, previewCells,
+    setTool, setGridSize, setCornerRadius, setInnerRadius,
     clearGrid, undo, redo,
     canUndo: history.length > 0,
     canRedo: future.length > 0,

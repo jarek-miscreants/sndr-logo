@@ -9,16 +9,14 @@ import { toast } from '@/hooks/use-toast';
 interface ControlsPanelProps {
   grid: boolean[][];
   cornerRadius: number;
-  stretchX: number;
-  stretchY: number;
+  innerRadius: number;
   onCornerRadiusChange: (v: number) => void;
-  onStretchXChange: (v: number) => void;
-  onStretchYChange: (v: number) => void;
+  onInnerRadiusChange: (v: number) => void;
 }
 
 const ControlsPanel: React.FC<ControlsPanelProps> = ({
-  grid, cornerRadius, stretchX, stretchY,
-  onCornerRadiusChange, onStretchXChange, onStretchYChange,
+  grid, cornerRadius, innerRadius,
+  onCornerRadiusChange, onInnerRadiusChange,
 }) => {
   const [pngScale, setPngScale] = useState('1');
 
@@ -37,23 +35,12 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
 
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-          Stretch X — {stretchX.toFixed(2)}
+          Inner Radius (Metaball) — {Math.round(innerRadius * 200)}%
         </label>
         <Slider
-          value={[stretchX]}
-          min={0.5} max={2} step={0.05}
-          onValueChange={([v]) => onStretchXChange(v)}
-        />
-      </div>
-
-      <div>
-        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-          Stretch Y — {stretchY.toFixed(2)}
-        </label>
-        <Slider
-          value={[stretchY]}
-          min={0.5} max={2} step={0.05}
-          onValueChange={([v]) => onStretchYChange(v)}
+          value={[innerRadius]}
+          min={0} max={0.5} step={0.01}
+          onValueChange={([v]) => onInnerRadiusChange(v)}
         />
       </div>
 
@@ -63,7 +50,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
         <span className="text-xs font-medium text-muted-foreground">Export</span>
         <Button
           variant="secondary" size="sm"
-          onClick={() => exportSVG(grid, cornerRadius, stretchX, stretchY)}
+          onClick={() => exportSVG(grid, cornerRadius, innerRadius)}
         >
           <Download className="h-4 w-4 mr-1.5" /> Download SVG
         </Button>
@@ -71,7 +58,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
         <div className="flex gap-2">
           <Button
             variant="secondary" size="sm" className="flex-1"
-            onClick={() => exportPNG(grid, cornerRadius, stretchX, stretchY, Number(pngScale))}
+            onClick={() => exportPNG(grid, cornerRadius, innerRadius, Number(pngScale))}
           >
             <Download className="h-4 w-4 mr-1.5" /> PNG
           </Button>
@@ -90,7 +77,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
         <Button
           variant="outline" size="sm"
           onClick={async () => {
-            await copySVGToClipboard(grid, cornerRadius, stretchX, stretchY);
+            await copySVGToClipboard(grid, cornerRadius, innerRadius);
             toast({ title: 'SVG copied to clipboard' });
           }}
         >
