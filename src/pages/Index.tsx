@@ -55,6 +55,7 @@ const Index = () => {
         onUndo={state.undo}
         onRedo={state.redo}
         onClear={state.clearGrid}
+        onRandomPattern={state.generateRandomPattern}
       />
 
       <div className="flex flex-1 min-h-0">
