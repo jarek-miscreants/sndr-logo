@@ -6,6 +6,7 @@ import Toolbar from '@/components/grid/Toolbar';
 import ControlsPanel from '@/components/grid/ControlsPanel';
 import type { Tool } from '@/hooks/useGridState';
 
+// Grid Shape Generator v2
 const Index = () => {
   const state = useGridState();
 
