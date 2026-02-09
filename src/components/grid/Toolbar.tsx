@@ -4,14 +4,16 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Pencil, Eraser, Minus, Square, Undo2, Redo2, Trash2, MousePointer, Shuffle } from 'lucide-react';
 import type { Tool } from '@/hooks/useGridState';
+import { gridPresets } from '@/hooks/useGridState';
 
 interface ToolbarProps {
   tool: Tool;
-  gridSize: number;
+  gridRows: number;
+  gridCols: number;
   canUndo: boolean;
   canRedo: boolean;
   onToolChange: (tool: Tool) => void;
-  onGridSizeChange: (size: number) => void;
+  onGridSizeChange: (rows: number, cols: number) => void;
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
@@ -26,12 +28,12 @@ const tools: { id: Tool; icon: React.ElementType; label: string; shortcut: strin
   { id: 'edit', icon: MousePointer, label: 'Edit Cell', shortcut: 'V' },
 ];
 
-const gridSizes = [8, 16, 32, 64];
-
 const Toolbar: React.FC<ToolbarProps> = ({
-  tool, gridSize, canUndo, canRedo,
+  tool, gridRows, gridCols, canUndo, canRedo,
   onToolChange, onGridSizeChange, onUndo, onRedo, onClear, onRandomPattern,
 }) => {
+  const currentPresetValue = `${gridRows}x${gridCols}`;
+
   return (
     <div className="flex items-center gap-1 p-2 bg-card border-b border-border flex-wrap">
       <div className="flex items-center gap-0.5 mr-2">
@@ -54,13 +56,19 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
       <div className="h-6 w-px bg-border mx-1" />
 
-      <Select value={String(gridSize)} onValueChange={v => onGridSizeChange(Number(v))}>
+      <Select
+        value={currentPresetValue}
+        onValueChange={v => {
+          const preset = gridPresets.find(p => `${p.rows}x${p.cols}` === v);
+          if (preset) onGridSizeChange(preset.rows, preset.cols);
+        }}
+      >
         <SelectTrigger className="w-24 h-9">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {gridSizes.map(s => (
-            <SelectItem key={s} value={String(s)}>{s}×{s}</SelectItem>
+          {gridPresets.map(p => (
+            <SelectItem key={p.label} value={`${p.rows}x${p.cols}`}>{p.label}</SelectItem>
           ))}
         </SelectContent>
       </Select>

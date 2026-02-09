@@ -4,7 +4,8 @@ import type { CellRadiusLookup } from '@/lib/vectorRenderer';
 
 interface PixelGridProps {
   grid: boolean[][];
-  gridSize: number;
+  gridRows: number;
+  gridCols: number;
   cornerRadius: number;
   innerRadius: number;
   previewCells: { r: number; c: number }[];
@@ -16,7 +17,7 @@ interface PixelGridProps {
 }
 
 const PixelGrid: React.FC<PixelGridProps> = ({
-  grid, gridSize, cornerRadius, innerRadius, previewCells, selectedCell, cellRadiusLookup,
+  grid, gridRows, gridCols, cornerRadius, innerRadius, previewCells, selectedCell, cellRadiusLookup,
   onCellDown, onCellMove, onCellUp,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -28,19 +29,20 @@ const PixelGrid: React.FC<PixelGridProps> = ({
     if (!container) return;
     const observer = new ResizeObserver(entries => {
       const { width, height } = entries[0].contentRect;
-      const size = Math.floor(Math.min(width, height) / gridSize);
-      setCellSize(Math.max(size, 4));
+      const sizeByW = Math.floor(width / gridCols);
+      const sizeByH = Math.floor(height / gridRows);
+      setCellSize(Math.max(Math.min(sizeByW, sizeByH), 4));
     });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [gridSize]);
+  }, [gridRows, gridCols]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
-    const canvasW = gridSize * cellSize;
-    const canvasH = gridSize * cellSize;
+    const canvasW = gridCols * cellSize;
+    const canvasH = gridRows * cellSize;
 
     canvas.width = canvasW * dpr;
     canvas.height = canvasH * dpr;
@@ -51,11 +53,9 @@ const PixelGrid: React.FC<PixelGridProps> = ({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, canvasW, canvasH);
 
-    // Background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    // Filled cells as vector path with corner rounding
     const pathData = generateSVGPathData(grid, cornerRadius, cellSize, cellSize, innerRadius, cellRadiusLookup);
     if (pathData) {
       ctx.fillStyle = '#1a1b2e';
@@ -63,37 +63,36 @@ const PixelGrid: React.FC<PixelGridProps> = ({
       ctx.fill(path, 'evenodd');
     }
 
-    // Preview cells
     if (previewCells.length > 0) {
       ctx.fillStyle = 'rgba(0, 190, 170, 0.35)';
       for (const { r, c } of previewCells) {
-        if (r >= 0 && r < gridSize && c >= 0 && c < gridSize) {
+        if (r >= 0 && r < gridRows && c >= 0 && c < gridCols) {
           ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
         }
       }
     }
 
-    // Selected cell highlight
-    if (selectedCell && selectedCell.r >= 0 && selectedCell.r < gridSize && selectedCell.c >= 0 && selectedCell.c < gridSize) {
+    if (selectedCell && selectedCell.r >= 0 && selectedCell.r < gridRows && selectedCell.c >= 0 && selectedCell.c < gridCols) {
       ctx.strokeStyle = '#569378';
       ctx.lineWidth = 2;
       ctx.strokeRect(selectedCell.c * cellSize + 1, selectedCell.r * cellSize + 1, cellSize - 2, cellSize - 2);
     }
 
-    // Grid lines
     ctx.strokeStyle = '#e0e0e6';
     ctx.lineWidth = 0.5;
-    for (let i = 0; i <= gridSize; i++) {
+    for (let c = 0; c <= gridCols; c++) {
       ctx.beginPath();
-      ctx.moveTo(i * cellSize, 0);
-      ctx.lineTo(i * cellSize, canvasH);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(0, i * cellSize);
-      ctx.lineTo(canvasW, i * cellSize);
+      ctx.moveTo(c * cellSize, 0);
+      ctx.lineTo(c * cellSize, canvasH);
       ctx.stroke();
     }
-  }, [grid, gridSize, cellSize, previewCells, cornerRadius, innerRadius, selectedCell, cellRadiusLookup]);
+    for (let r = 0; r <= gridRows; r++) {
+      ctx.beginPath();
+      ctx.moveTo(0, r * cellSize);
+      ctx.lineTo(canvasW, r * cellSize);
+      ctx.stroke();
+    }
+  }, [grid, gridRows, gridCols, cellSize, previewCells, cornerRadius, innerRadius, selectedCell, cellRadiusLookup]);
 
   const getCoords = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current!.getBoundingClientRect();

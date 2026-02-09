@@ -10,12 +10,26 @@ export interface CellSettings {
 
 export type CellSettingsMap = Map<string, CellSettings>;
 
+export interface GridPreset {
+  label: string;
+  rows: number;
+  cols: number;
+}
+
+export const gridPresets: GridPreset[] = [
+  { label: '4×9', rows: 4, cols: 9 },
+  { label: '8×8', rows: 8, cols: 8 },
+  { label: '16×16', rows: 16, cols: 16 },
+  { label: '32×32', rows: 32, cols: 32 },
+  { label: '64×64', rows: 64, cols: 64 },
+];
+
 function cellKey(r: number, c: number): string {
   return `${r},${c}`;
 }
 
-function createEmptyGrid(size: number): boolean[][] {
-  return Array.from({ length: size }, () => Array(size).fill(false));
+function createEmptyGrid(rows: number, cols: number): boolean[][] {
+  return Array.from({ length: rows }, () => Array(cols).fill(false));
 }
 
 function cloneGrid(grid: boolean[][]): boolean[][] {
@@ -23,8 +37,7 @@ function cloneGrid(grid: boolean[][]): boolean[][] {
 }
 
 export function useGridState() {
-  const [gridSize, setGridSizeRaw] = useState(16);
-  const [grid, setGrid] = useState(() => createEmptyGrid(16));
+  const [grid, setGrid] = useState(() => createEmptyGrid(16, 16));
   const [tool, setTool] = useState<Tool>('pencil');
   const [cornerRadius, setCornerRadius] = useState(0.25);
   const [innerRadius, setInnerRadius] = useState(0);
@@ -40,29 +53,31 @@ export function useGridState() {
   const drawStartRef = useRef<{ r: number; c: number } | null>(null);
   const snapshotRef = useRef<boolean[][] | null>(null);
 
+  const gridRows = grid.length;
+  const gridCols = grid[0]?.length || 0;
+
   const pushHistory = useCallback((g: boolean[][]) => {
     setHistory(h => [...h.slice(-50), g]);
     setFuture([]);
   }, []);
 
-  const setGridSize = useCallback((size: number) => {
+  const setGridSize = useCallback((rows: number, cols: number) => {
     setGrid(prev => {
-      const newGrid = createEmptyGrid(size);
-      const minR = Math.min(prev.length, size);
-      const minC = Math.min(prev[0]?.length || 0, size);
+      const newGrid = createEmptyGrid(rows, cols);
+      const minR = Math.min(prev.length, rows);
+      const minC = Math.min(prev[0]?.length || 0, cols);
       for (let r = 0; r < minR; r++)
         for (let c = 0; c < minC; c++)
           newGrid[r][c] = prev[r][c];
       pushHistory(prev);
       return newGrid;
     });
-    setGridSizeRaw(size);
   }, [pushHistory]);
 
   const clearGrid = useCallback(() => {
     setGrid(prev => {
       pushHistory(prev);
-      return createEmptyGrid(prev.length);
+      return createEmptyGrid(prev.length, prev[0]?.length || 0);
     });
     setCellSettings(new Map());
     setSelectedCell(null);
@@ -74,7 +89,6 @@ export function useGridState() {
       const prev = h[h.length - 1];
       setFuture(f => [...f, grid]);
       setGrid(prev);
-      setGridSizeRaw(prev.length);
       return h.slice(0, -1);
     });
   }, [grid]);
@@ -85,7 +99,6 @@ export function useGridState() {
       const next = f[f.length - 1];
       setHistory(h => [...h, grid]);
       setGrid(next);
-      setGridSizeRaw(next.length);
       return f.slice(0, -1);
     });
   }, [grid]);
@@ -123,7 +136,7 @@ export function useGridState() {
   }, [cellSettings]);
 
   const handleCellDown = useCallback((r: number, c: number) => {
-    if (r < 0 || r >= gridSize || c < 0 || c >= gridSize) return;
+    if (r < 0 || r >= gridRows || c < 0 || c >= gridCols) return;
 
     if (tool === 'edit') {
       if (grid[r][c]) {
@@ -144,11 +157,11 @@ export function useGridState() {
       newGrid[r][c] = tool === 'pencil';
       setGrid(newGrid);
     }
-  }, [grid, gridSize, tool, pushHistory]);
+  }, [grid, gridRows, gridCols, tool, pushHistory]);
 
   const handleCellMove = useCallback((r: number, c: number) => {
     if (!drawingRef.current) return;
-    if (r < 0 || r >= gridSize || c < 0 || c >= gridSize) return;
+    if (r < 0 || r >= gridRows || c < 0 || c >= gridCols) return;
 
     if (tool === 'pencil' || tool === 'eraser') {
       setGrid(prev => {
@@ -173,7 +186,7 @@ export function useGridState() {
         setPreviewCells(cells);
       }
     }
-  }, [gridSize, tool]);
+  }, [gridRows, gridCols, tool]);
 
   const handleCellUp = useCallback(() => {
     if (!drawingRef.current) return;
@@ -184,7 +197,7 @@ export function useGridState() {
       setGrid(prev => {
         const ng = cloneGrid(prev);
         for (const { r, c } of previewCells) {
-          if (r >= 0 && r < gridSize && c >= 0 && c < gridSize) {
+          if (r >= 0 && r < gridRows && c >= 0 && c < gridCols) {
             ng[r][c] = true;
           }
         }
@@ -195,29 +208,28 @@ export function useGridState() {
 
     drawStartRef.current = null;
     snapshotRef.current = null;
-  }, [tool, previewCells, gridSize, pushHistory]);
+  }, [tool, previewCells, gridRows, gridCols, pushHistory]);
 
   const generateRandomPattern = useCallback(() => {
     const patternH = 4;
     const patternW = 9;
-    // Center the pattern on the grid
-    const startR = Math.max(0, Math.floor((gridSize - patternH) / 2));
-    const startC = Math.max(0, Math.floor((gridSize - patternW) / 2));
+    const startR = Math.max(0, Math.floor((gridRows - patternH) / 2));
+    const startC = Math.max(0, Math.floor((gridCols - patternW) / 2));
     
     pushHistory(grid);
     setGrid(prev => {
       const ng = cloneGrid(prev);
-      for (let r = 0; r < patternH && startR + r < gridSize; r++) {
-        for (let c = 0; c < patternW && startC + c < gridSize; c++) {
+      for (let r = 0; r < patternH && startR + r < gridRows; r++) {
+        for (let c = 0; c < patternW && startC + c < gridCols; c++) {
           ng[startR + r][startC + c] = Math.random() > 0.4;
         }
       }
       return ng;
     });
-  }, [grid, gridSize, pushHistory]);
+  }, [grid, gridRows, gridCols, pushHistory]);
 
   return {
-    grid, gridSize, tool, cornerRadius, innerRadius, previewCells,
+    grid, gridRows, gridCols, tool, cornerRadius, innerRadius, previewCells,
     cellSettings, selectedCell,
     setTool, setGridSize, setCornerRadius, setInnerRadius,
     setSelectedCell,
