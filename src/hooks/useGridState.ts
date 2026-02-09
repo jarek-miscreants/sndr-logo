@@ -197,6 +197,25 @@ export function useGridState() {
     snapshotRef.current = null;
   }, [tool, previewCells, gridSize, pushHistory]);
 
+  const generateRandomPattern = useCallback(() => {
+    const patternH = 4;
+    const patternW = 9;
+    // Center the pattern on the grid
+    const startR = Math.max(0, Math.floor((gridSize - patternH) / 2));
+    const startC = Math.max(0, Math.floor((gridSize - patternW) / 2));
+    
+    pushHistory(grid);
+    setGrid(prev => {
+      const ng = cloneGrid(prev);
+      for (let r = 0; r < patternH && startR + r < gridSize; r++) {
+        for (let c = 0; c < patternW && startC + c < gridSize; c++) {
+          ng[startR + r][startC + c] = Math.random() > 0.4;
+        }
+      }
+      return ng;
+    });
+  }, [grid, gridSize, pushHistory]);
+
   return {
     grid, gridSize, tool, cornerRadius, innerRadius, previewCells,
     cellSettings, selectedCell,
@@ -204,6 +223,7 @@ export function useGridState() {
     setSelectedCell,
     setCellCornerRadius, setCellInnerRadius, resetCellSettings, getCellSettings,
     clearGrid, undo, redo,
+    generateRandomPattern,
     canUndo: history.length > 0,
     canRedo: future.length > 0,
     handleCellDown, handleCellMove, handleCellUp,

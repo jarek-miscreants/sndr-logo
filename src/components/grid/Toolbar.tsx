@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Pencil, Eraser, Minus, Square, Undo2, Redo2, Trash2, MousePointer } from 'lucide-react';
+import { Pencil, Eraser, Minus, Square, Undo2, Redo2, Trash2, MousePointer, Shuffle } from 'lucide-react';
 import type { Tool } from '@/hooks/useGridState';
 
 interface ToolbarProps {
@@ -15,6 +15,7 @@ interface ToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
+  onRandomPattern: () => void;
 }
 
 const tools: { id: Tool; icon: React.ElementType; label: string; shortcut: string }[] = [
@@ -29,7 +30,7 @@ const gridSizes = [8, 16, 32, 64];
 
 const Toolbar: React.FC<ToolbarProps> = ({
   tool, gridSize, canUndo, canRedo,
-  onToolChange, onGridSizeChange, onUndo, onRedo, onClear,
+  onToolChange, onGridSizeChange, onUndo, onRedo, onClear, onRandomPattern,
 }) => {
   return (
     <div className="flex items-center gap-1 p-2 bg-card border-b border-border flex-wrap">
@@ -82,6 +83,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
           </Button>
         </TooltipTrigger>
         <TooltipContent>Redo (Ctrl+Shift+Z)</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onRandomPattern}>
+            <Shuffle className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Random Pattern (4×9)</TooltipContent>
       </Tooltip>
 
       <Tooltip>
