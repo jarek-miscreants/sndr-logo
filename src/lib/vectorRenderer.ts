@@ -123,18 +123,27 @@ export function generateSVGPathData(
 
     const getRadius = (c: Corner) => {
       if (cellRadiusLookup) {
-        const s1 = cellRadiusLookup(c.cell.r, c.cell.c);
-        const s2 = cellRadiusLookup(c.cell2.r, c.cell2.c);
         if (c.isConvex) {
-          // For convex corners, use the primary cell's cornerRadius
+          const s1 = cellRadiusLookup(c.cell.r, c.cell.c);
           return Math.min(Math.max(s1.cornerRadius, 0), 0.5);
         } else {
-          // For concave corners, check both adjacent cells for overrides
-          // Use whichever has a non-global value, or the max of both
-          return Math.max(
-            Math.min(Math.max(s1.innerRadius, 0), 0.5),
-            Math.min(Math.max(s2.innerRadius, 0), 0.5)
-          );
+          // For concave corners, check all 4 cells around the vertex
+          const vx = c.vertex.x;
+          const vy = c.vertex.y;
+          const adjacentCells = [
+            { r: vy - 1, c: vx - 1 },
+            { r: vy - 1, c: vx },
+            { r: vy, c: vx - 1 },
+            { r: vy, c: vx },
+          ];
+          let maxIR = 0;
+          for (const ac of adjacentCells) {
+            if (ac.r >= 0 && ac.r < grid.length && ac.c >= 0 && ac.c < (grid[0]?.length || 0) && grid[ac.r][ac.c]) {
+              const s = cellRadiusLookup(ac.r, ac.c);
+              maxIR = Math.max(maxIR, Math.min(Math.max(s.innerRadius, 0), 0.5));
+            }
+          }
+          return maxIR;
         }
       }
       return c.isConvex ? globalR : globalIR;
