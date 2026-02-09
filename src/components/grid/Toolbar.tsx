@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Pencil, Eraser, Minus, Square, Undo2, Redo2, Trash2 } from 'lucide-react';
+import { Pencil, Eraser, Minus, Square, Undo2, Redo2, Trash2, MousePointer } from 'lucide-react';
 import type { Tool } from '@/hooks/useGridState';
 
 interface ToolbarProps {
@@ -22,6 +22,7 @@ const tools: { id: Tool; icon: React.ElementType; label: string; shortcut: strin
   { id: 'eraser', icon: Eraser, label: 'Eraser', shortcut: 'E' },
   { id: 'line', icon: Minus, label: 'Line', shortcut: 'L' },
   { id: 'rectangle', icon: Square, label: 'Rectangle', shortcut: 'R' },
+  { id: 'edit', icon: MousePointer, label: 'Edit Cell', shortcut: 'V' },
 ];
 
 const gridSizes = [8, 16, 32, 64];

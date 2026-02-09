@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { generateSVGPathData } from '@/lib/vectorRenderer';
+import type { CellRadiusLookup } from '@/lib/vectorRenderer';
 
 interface PixelGridProps {
   grid: boolean[][];
@@ -7,13 +8,16 @@ interface PixelGridProps {
   cornerRadius: number;
   innerRadius: number;
   previewCells: { r: number; c: number }[];
+  selectedCell: { r: number; c: number } | null;
+  cellRadiusLookup?: CellRadiusLookup;
   onCellDown: (r: number, c: number) => void;
   onCellMove: (r: number, c: number) => void;
   onCellUp: () => void;
 }
 
 const PixelGrid: React.FC<PixelGridProps> = ({
-  grid, gridSize, cornerRadius, innerRadius, previewCells, onCellDown, onCellMove, onCellUp,
+  grid, gridSize, cornerRadius, innerRadius, previewCells, selectedCell, cellRadiusLookup,
+  onCellDown, onCellMove, onCellUp,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,7 +56,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
     ctx.fillRect(0, 0, canvasW, canvasH);
 
     // Filled cells as vector path with corner rounding
-    const pathData = generateSVGPathData(grid, cornerRadius, cellSize, cellSize, innerRadius);
+    const pathData = generateSVGPathData(grid, cornerRadius, cellSize, cellSize, innerRadius, cellRadiusLookup);
     if (pathData) {
       ctx.fillStyle = '#1a1b2e';
       const path = new Path2D(pathData);
@@ -69,6 +73,13 @@ const PixelGrid: React.FC<PixelGridProps> = ({
       }
     }
 
+    // Selected cell highlight
+    if (selectedCell && selectedCell.r >= 0 && selectedCell.r < gridSize && selectedCell.c >= 0 && selectedCell.c < gridSize) {
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(selectedCell.c * cellSize + 1, selectedCell.r * cellSize + 1, cellSize - 2, cellSize - 2);
+    }
+
     // Grid lines
     ctx.strokeStyle = '#e0e0e6';
     ctx.lineWidth = 0.5;
@@ -82,7 +93,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
       ctx.lineTo(canvasW, i * cellSize);
       ctx.stroke();
     }
-  }, [grid, gridSize, cellSize, previewCells, cornerRadius, innerRadius]);
+  }, [grid, gridSize, cellSize, previewCells, cornerRadius, innerRadius, selectedCell, cellRadiusLookup]);
 
   const getCoords = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current!.getBoundingClientRect();

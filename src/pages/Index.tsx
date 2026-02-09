@@ -1,14 +1,27 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useGridState } from '@/hooks/useGridState';
 import PixelGrid from '@/components/grid/PixelGrid';
 import PreviewPanel from '@/components/grid/PreviewPanel';
 import Toolbar from '@/components/grid/Toolbar';
 import ControlsPanel from '@/components/grid/ControlsPanel';
+import CellEditorPanel from '@/components/grid/CellEditorPanel';
 import type { Tool } from '@/hooks/useGridState';
+import type { CellRadiusLookup } from '@/lib/vectorRenderer';
 
-// Grid Shape Generator v2
+// Grid Shape Generator v3
 const Index = () => {
   const state = useGridState();
+
+  const cellRadiusLookup: CellRadiusLookup | undefined = useMemo(() => {
+    if (state.cellSettings.size === 0) return undefined;
+    return (r: number, c: number) => {
+      const settings = state.cellSettings.get(`${r},${c}`);
+      return {
+        cornerRadius: settings?.cornerRadius ?? state.cornerRadius,
+        innerRadius: settings?.innerRadius ?? state.innerRadius,
+      };
+    };
+  }, [state.cellSettings, state.cornerRadius, state.innerRadius]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -21,7 +34,7 @@ const Index = () => {
         if (e.key === 'y') { e.preventDefault(); state.redo(); return; }
       }
 
-      const toolMap: Record<string, Tool> = { p: 'pencil', e: 'eraser', l: 'line', r: 'rectangle' };
+      const toolMap: Record<string, Tool> = { p: 'pencil', e: 'eraser', l: 'line', r: 'rectangle', v: 'edit' };
       if (toolMap[e.key.toLowerCase()]) {
         state.setTool(toolMap[e.key.toLowerCase()]);
       }
@@ -53,6 +66,8 @@ const Index = () => {
             cornerRadius={state.cornerRadius}
             innerRadius={state.innerRadius}
             previewCells={state.previewCells}
+            selectedCell={state.selectedCell}
+            cellRadiusLookup={cellRadiusLookup}
             onCellDown={state.handleCellDown}
             onCellMove={state.handleCellMove}
             onCellUp={state.handleCellUp}
@@ -67,14 +82,29 @@ const Index = () => {
               gridSize={state.gridSize}
               cornerRadius={state.cornerRadius}
               innerRadius={state.innerRadius}
+              cellRadiusLookup={cellRadiusLookup}
             />
           </div>
+
+          {state.selectedCell && (
+            <CellEditorPanel
+              selectedCell={state.selectedCell}
+              cellSettings={state.getCellSettings(state.selectedCell.r, state.selectedCell.c)}
+              globalCornerRadius={state.cornerRadius}
+              globalInnerRadius={state.innerRadius}
+              onCornerRadiusChange={state.setCellCornerRadius}
+              onInnerRadiusChange={state.setCellInnerRadius}
+              onReset={state.resetCellSettings}
+            />
+          )}
+
           <ControlsPanel
             grid={state.grid}
             cornerRadius={state.cornerRadius}
             innerRadius={state.innerRadius}
             onCornerRadiusChange={state.setCornerRadius}
             onInnerRadiusChange={state.setInnerRadius}
+            cellRadiusLookup={cellRadiusLookup}
           />
         </div>
       </div>

@@ -1,7 +1,18 @@
 import { useState, useCallback, useRef } from 'react';
 import { bresenhamLine } from '@/lib/vectorRenderer';
 
-export type Tool = 'pencil' | 'eraser' | 'line' | 'rectangle';
+export type Tool = 'pencil' | 'eraser' | 'line' | 'rectangle' | 'edit';
+
+export interface CellSettings {
+  cornerRadius: number;
+  innerRadius: number;
+}
+
+export type CellSettingsMap = Map<string, CellSettings>;
+
+function cellKey(r: number, c: number): string {
+  return `${r},${c}`;
+}
 
 function createEmptyGrid(size: number): boolean[][] {
   return Array.from({ length: size }, () => Array(size).fill(false));
@@ -17,6 +28,9 @@ export function useGridState() {
   const [tool, setTool] = useState<Tool>('pencil');
   const [cornerRadius, setCornerRadius] = useState(0.25);
   const [innerRadius, setInnerRadius] = useState(0);
+
+  const [cellSettings, setCellSettings] = useState<CellSettingsMap>(new Map());
+  const [selectedCell, setSelectedCell] = useState<{ r: number; c: number } | null>(null);
 
   const [history, setHistory] = useState<boolean[][][]>([]);
   const [future, setFuture] = useState<boolean[][][]>([]);
@@ -50,6 +64,8 @@ export function useGridState() {
       pushHistory(prev);
       return createEmptyGrid(prev.length);
     });
+    setCellSettings(new Map());
+    setSelectedCell(null);
   }, [pushHistory]);
 
   const undo = useCallback(() => {
@@ -74,8 +90,50 @@ export function useGridState() {
     });
   }, [grid]);
 
+  const setCellCornerRadius = useCallback((r: number, c: number, value: number) => {
+    setCellSettings(prev => {
+      const next = new Map(prev);
+      const key = cellKey(r, c);
+      const existing = next.get(key) || { cornerRadius: cornerRadius, innerRadius: innerRadius };
+      next.set(key, { ...existing, cornerRadius: value });
+      return next;
+    });
+  }, [cornerRadius, innerRadius]);
+
+  const setCellInnerRadius = useCallback((r: number, c: number, value: number) => {
+    setCellSettings(prev => {
+      const next = new Map(prev);
+      const key = cellKey(r, c);
+      const existing = next.get(key) || { cornerRadius: cornerRadius, innerRadius: innerRadius };
+      next.set(key, { ...existing, innerRadius: value });
+      return next;
+    });
+  }, [cornerRadius, innerRadius]);
+
+  const resetCellSettings = useCallback((r: number, c: number) => {
+    setCellSettings(prev => {
+      const next = new Map(prev);
+      next.delete(cellKey(r, c));
+      return next;
+    });
+  }, []);
+
+  const getCellSettings = useCallback((r: number, c: number): CellSettings | undefined => {
+    return cellSettings.get(cellKey(r, c));
+  }, [cellSettings]);
+
   const handleCellDown = useCallback((r: number, c: number) => {
     if (r < 0 || r >= gridSize || c < 0 || c >= gridSize) return;
+
+    if (tool === 'edit') {
+      if (grid[r][c]) {
+        setSelectedCell({ r, c });
+      } else {
+        setSelectedCell(null);
+      }
+      return;
+    }
+
     drawingRef.current = true;
     drawStartRef.current = { r, c };
     snapshotRef.current = cloneGrid(grid);
@@ -141,7 +199,10 @@ export function useGridState() {
 
   return {
     grid, gridSize, tool, cornerRadius, innerRadius, previewCells,
+    cellSettings, selectedCell,
     setTool, setGridSize, setCornerRadius, setInnerRadius,
+    setSelectedCell,
+    setCellCornerRadius, setCellInnerRadius, resetCellSettings, getCellSettings,
     clearGrid, undo, redo,
     canUndo: history.length > 0,
     canRedo: future.length > 0,

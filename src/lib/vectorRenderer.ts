@@ -1,10 +1,12 @@
 type Point = { x: number; y: number };
 type Direction = { dx: number; dy: number };
-interface Edge { start: Point; end: Point; dir: Direction; }
+interface Edge { start: Point; end: Point; dir: Direction; cell: { r: number; c: number }; }
 
 function ptKey(p: Point): string { return `${p.x},${p.y}`; }
 function edgeKey(e: Edge): string { return `${e.start.x},${e.start.y}-${e.end.x},${e.end.y}`; }
 function round(n: number): string { return Number(n.toFixed(4)).toString(); }
+
+export type CellRadiusLookup = (r: number, c: number) => { cornerRadius: number; innerRadius: number };
 
 function findBoundaryEdges(grid: boolean[][]): Edge[] {
   const rows = grid.length;
@@ -16,14 +18,15 @@ function findBoundaryEdges(grid: boolean[][]): Edge[] {
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (!grid[r][c]) continue;
+      const cell = { r, c };
       if (!isFilled(r - 1, c))
-        edges.push({ start: { x: c, y: r }, end: { x: c + 1, y: r }, dir: { dx: 1, dy: 0 } });
+        edges.push({ start: { x: c, y: r }, end: { x: c + 1, y: r }, dir: { dx: 1, dy: 0 }, cell });
       if (!isFilled(r, c + 1))
-        edges.push({ start: { x: c + 1, y: r }, end: { x: c + 1, y: r + 1 }, dir: { dx: 0, dy: 1 } });
+        edges.push({ start: { x: c + 1, y: r }, end: { x: c + 1, y: r + 1 }, dir: { dx: 0, dy: 1 }, cell });
       if (!isFilled(r + 1, c))
-        edges.push({ start: { x: c + 1, y: r + 1 }, end: { x: c, y: r + 1 }, dir: { dx: -1, dy: 0 } });
+        edges.push({ start: { x: c + 1, y: r + 1 }, end: { x: c, y: r + 1 }, dir: { dx: -1, dy: 0 }, cell });
       if (!isFilled(r, c - 1))
-        edges.push({ start: { x: c, y: r + 1 }, end: { x: c, y: r }, dir: { dx: 0, dy: -1 } });
+        edges.push({ start: { x: c, y: r + 1 }, end: { x: c, y: r }, dir: { dx: 0, dy: -1 }, cell });
     }
   }
   return edges;
@@ -81,39 +84,55 @@ export function generateSVGPathData(
   radius: number,
   scaleX: number = 1,
   scaleY: number = 1,
-  innerRadius: number = 0
+  innerRadius: number = 0,
+  cellRadiusLookup?: CellRadiusLookup
 ): string {
   const edges = findBoundaryEdges(grid);
   if (edges.length === 0) return '';
 
   const contours = traceContours(edges);
   const pathParts: string[] = [];
-  const r = Math.min(Math.max(radius, 0), 0.5);
-  const ir = Math.min(Math.max(innerRadius, 0), 0.5);
+  const globalR = Math.min(Math.max(radius, 0), 0.5);
+  const globalIR = Math.min(Math.max(innerRadius, 0), 0.5);
 
   for (const contour of contours) {
     const n = contour.length;
 
-    type Corner = { vertex: Point; incoming: Direction; outgoing: Direction; isConvex: boolean };
+    type Corner = { vertex: Point; incoming: Direction; outgoing: Direction; isConvex: boolean; cell: { r: number; c: number } };
     const corners: Corner[] = [];
 
     for (let i = 0; i < n; i++) {
-      const incoming = contour[(i - 1 + n) % n].dir;
-      const outgoing = contour[i].dir;
+      const prevEdge = contour[(i - 1 + n) % n];
+      const curEdge = contour[i];
+      const incoming = prevEdge.dir;
+      const outgoing = curEdge.dir;
       if (incoming.dx === outgoing.dx && incoming.dy === outgoing.dy) continue;
       corners.push({
-        vertex: contour[i].start,
+        vertex: curEdge.start,
         incoming,
         outgoing,
         isConvex: turnPriority(incoming, outgoing) === 0,
+        cell: prevEdge.cell,
       });
     }
 
     if (corners.length < 3) continue;
 
     const segs: string[] = [];
+
+    const getRadius = (c: Corner) => {
+      if (cellRadiusLookup) {
+        const settings = cellRadiusLookup(c.cell.r, c.cell.c);
+        const cr = c.isConvex
+          ? Math.min(Math.max(settings.cornerRadius, 0), 0.5)
+          : Math.min(Math.max(settings.innerRadius, 0), 0.5);
+        return cr;
+      }
+      return c.isConvex ? globalR : globalIR;
+    };
+
     const first = corners[0];
-    const firstR = first.isConvex ? r : ir;
+    const firstR = getRadius(first);
     const firstDep = firstR > 0
       ? { x: (first.vertex.x + first.outgoing.dx * firstR) * scaleX, y: (first.vertex.y + first.outgoing.dy * firstR) * scaleY }
       : { x: first.vertex.x * scaleX, y: first.vertex.y * scaleY };
@@ -123,7 +142,7 @@ export function generateSVGPathData(
     for (let step = 0; step < corners.length; step++) {
       const idx = (step + 1) % corners.length;
       const c = corners[idx];
-      const cr = c.isConvex ? r : ir;
+      const cr = getRadius(c);
 
       if (cr > 0) {
         const arr = {
@@ -136,8 +155,6 @@ export function generateSVGPathData(
         };
         const rx = cr * scaleX;
         const ry = cr * scaleY;
-        // Convex corners: sweep=1 (CW, rounds outward)
-        // Concave corners: sweep=0 (CCW, rounds inward — metaball effect)
         const sweep = c.isConvex ? 1 : 0;
         segs.push(`L${round(arr.x)} ${round(arr.y)}`);
         segs.push(`A${round(rx)} ${round(ry)} 0 0 ${sweep} ${round(dep.x)} ${round(dep.y)}`);
@@ -156,19 +173,20 @@ export function generateSVGPathData(
 export function generateSVGMarkup(
   grid: boolean[][],
   radius: number,
-  innerRadius: number = 0
+  innerRadius: number = 0,
+  cellRadiusLookup?: CellRadiusLookup
 ): string {
   const rows = grid.length;
   const cols = grid[0]?.length || 0;
-  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius);
+  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols} ${rows}" width="${cols * 20}" height="${rows * 20}">
   <path d="${pathData}" fill="black" fill-rule="evenodd"/>
 </svg>`;
 }
 
-export function exportSVG(grid: boolean[][], radius: number, innerRadius: number = 0): void {
-  const markup = generateSVGMarkup(grid, radius, innerRadius);
+export function exportSVG(grid: boolean[][], radius: number, innerRadius: number = 0, cellRadiusLookup?: CellRadiusLookup): void {
+  const markup = generateSVGMarkup(grid, radius, innerRadius, cellRadiusLookup);
   const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -181,7 +199,8 @@ export function exportPNG(
   grid: boolean[][],
   radius: number,
   innerRadius: number = 0,
-  pixelScale: number = 1
+  pixelScale: number = 1,
+  cellRadiusLookup?: CellRadiusLookup
 ): void {
   const rows = grid.length;
   const cols = grid[0]?.length || 0;
@@ -189,7 +208,7 @@ export function exportPNG(
   const aspect = cols / rows;
   const width = Math.round(aspect >= 1 ? baseSize * pixelScale : baseSize * pixelScale * aspect);
   const height = Math.round(aspect >= 1 ? baseSize * pixelScale / aspect : baseSize * pixelScale);
-  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius);
+  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup);
 
   const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols} ${rows}" width="${width}" height="${height}">
     <path d="${pathData}" fill="black" fill-rule="evenodd"/>
@@ -217,8 +236,8 @@ export function exportPNG(
   img.src = url;
 }
 
-export function copySVGToClipboard(grid: boolean[][], radius: number, innerRadius: number = 0): Promise<void> {
-  const markup = generateSVGMarkup(grid, radius, innerRadius);
+export function copySVGToClipboard(grid: boolean[][], radius: number, innerRadius: number = 0, cellRadiusLookup?: CellRadiusLookup): Promise<void> {
+  const markup = generateSVGMarkup(grid, radius, innerRadius, cellRadiusLookup);
   return navigator.clipboard.writeText(markup);
 }
 
