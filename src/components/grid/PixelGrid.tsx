@@ -1,8 +1,10 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
+import { generateSVGPathData } from '@/lib/vectorRenderer';
 
 interface PixelGridProps {
   grid: boolean[][];
   gridSize: number;
+  cornerRadius: number;
   previewCells: { r: number; c: number }[];
   onCellDown: (r: number, c: number) => void;
   onCellMove: (r: number, c: number) => void;
@@ -10,7 +12,7 @@ interface PixelGridProps {
 }
 
 const PixelGrid: React.FC<PixelGridProps> = ({
-  grid, gridSize, previewCells, onCellDown, onCellMove, onCellUp,
+  grid, gridSize, cornerRadius, previewCells, onCellDown, onCellMove, onCellUp,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,14 +50,12 @@ const PixelGrid: React.FC<PixelGridProps> = ({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    // Filled cells
-    ctx.fillStyle = '#1a1b2e';
-    for (let r = 0; r < gridSize; r++) {
-      for (let c = 0; c < gridSize; c++) {
-        if (grid[r]?.[c]) {
-          ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
-        }
-      }
+    // Filled cells as vector path with corner rounding
+    const pathData = generateSVGPathData(grid, cornerRadius, cellSize, cellSize);
+    if (pathData) {
+      ctx.fillStyle = '#1a1b2e';
+      const path = new Path2D(pathData);
+      ctx.fill(path, 'evenodd');
     }
 
     // Preview cells
@@ -81,7 +81,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
       ctx.lineTo(canvasW, i * cellSize);
       ctx.stroke();
     }
-  }, [grid, gridSize, cellSize, previewCells]);
+  }, [grid, gridSize, cellSize, previewCells, cornerRadius]);
 
   const getCoords = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current!.getBoundingClientRect();
