@@ -98,7 +98,7 @@ export function generateSVGPathData(
   for (const contour of contours) {
     const n = contour.length;
 
-    type Corner = { vertex: Point; incoming: Direction; outgoing: Direction; isConvex: boolean; cell: { r: number; c: number } };
+    type Corner = { vertex: Point; incoming: Direction; outgoing: Direction; isConvex: boolean; cell: { r: number; c: number }; cell2: { r: number; c: number } };
     const corners: Corner[] = [];
 
     for (let i = 0; i < n; i++) {
@@ -113,6 +113,7 @@ export function generateSVGPathData(
         outgoing,
         isConvex: turnPriority(incoming, outgoing) === 0,
         cell: prevEdge.cell,
+        cell2: curEdge.cell,
       });
     }
 
@@ -122,11 +123,19 @@ export function generateSVGPathData(
 
     const getRadius = (c: Corner) => {
       if (cellRadiusLookup) {
-        const settings = cellRadiusLookup(c.cell.r, c.cell.c);
-        const cr = c.isConvex
-          ? Math.min(Math.max(settings.cornerRadius, 0), 0.5)
-          : Math.min(Math.max(settings.innerRadius, 0), 0.5);
-        return cr;
+        const s1 = cellRadiusLookup(c.cell.r, c.cell.c);
+        const s2 = cellRadiusLookup(c.cell2.r, c.cell2.c);
+        if (c.isConvex) {
+          // For convex corners, use the primary cell's cornerRadius
+          return Math.min(Math.max(s1.cornerRadius, 0), 0.5);
+        } else {
+          // For concave corners, check both adjacent cells for overrides
+          // Use whichever has a non-global value, or the max of both
+          return Math.max(
+            Math.min(Math.max(s1.innerRadius, 0), 0.5),
+            Math.min(Math.max(s2.innerRadius, 0), 0.5)
+          );
+        }
       }
       return c.isConvex ? globalR : globalIR;
     };
