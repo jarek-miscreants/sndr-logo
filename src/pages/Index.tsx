@@ -65,7 +65,7 @@ const Index = () => {
             previewCells={state.previewCells}
             selectedCell={state.selectedCell}
             cellRadiusLookup={cellRadiusLookup}
-            diagonalBridge={state.diagonalBridge}
+            bridges={state.bridges}
             bridgeRadius={state.bridgeRadius}
             onCellDown={state.handleCellDown}
             onCellMove={state.handleCellMove}
@@ -80,7 +80,7 @@ const Index = () => {
               cornerRadius={state.cornerRadius}
               innerRadius={state.innerRadius}
               cellRadiusLookup={cellRadiusLookup}
-              diagonalBridge={state.diagonalBridge}
+              bridges={state.bridges}
               bridgeRadius={state.bridgeRadius}
             />
           </div>
@@ -91,9 +91,12 @@ const Index = () => {
               cellSettings={state.getCellSettings(state.selectedCell.r, state.selectedCell.c)}
               globalCornerRadius={state.cornerRadius}
               globalInnerRadius={state.innerRadius}
+              grid={state.grid}
+              bridges={state.bridges}
               onCornerRadiusChange={state.setCellCornerRadius}
               onInnerRadiusChange={state.setCellInnerRadius}
               onReset={state.resetCellSettings}
+              onRemoveBridge={state.removeBridge}
             />
           )}
 
@@ -101,11 +104,10 @@ const Index = () => {
             grid={state.grid}
             cornerRadius={state.cornerRadius}
             innerRadius={state.innerRadius}
-            diagonalBridge={state.diagonalBridge}
+            bridges={state.bridges}
             bridgeRadius={state.bridgeRadius}
             onCornerRadiusChange={state.setCornerRadius}
             onInnerRadiusChange={state.setInnerRadius}
-            onDiagonalBridgeChange={state.setDiagonalBridge}
             onBridgeRadiusChange={state.setBridgeRadius}
             cellRadiusLookup={cellRadiusLookup}
           />

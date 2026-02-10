@@ -7,20 +7,20 @@ interface PreviewPanelProps {
   cornerRadius: number;
   innerRadius: number;
   cellRadiusLookup?: CellRadiusLookup;
-  diagonalBridge: boolean;
+  bridges: Set<string>;
   bridgeRadius: number;
 }
 
 const PreviewPanel: React.FC<PreviewPanelProps> = ({
-  grid, cornerRadius, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius,
+  grid, cornerRadius, innerRadius, cellRadiusLookup, bridges, bridgeRadius,
 }) => {
   const { pathData, bridgeData, bounds } = useMemo(() => {
     const b = getFilledBounds(grid);
     if (!b) return { pathData: '', bridgeData: '', bounds: null };
     const pd = generateSVGPathData(grid, cornerRadius, 1, 1, innerRadius, cellRadiusLookup);
-    const bd = diagonalBridge ? generateBridgePathData(grid, bridgeRadius) : '';
+    const bd = bridges.size > 0 ? generateBridgePathData(bridges, bridgeRadius) : '';
     return { pathData: pd, bridgeData: bd, bounds: b };
-  }, [grid, cornerRadius, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius]);
+  }, [grid, cornerRadius, innerRadius, cellRadiusLookup, bridges, bridgeRadius]);
 
   return (
     <div className="flex items-center justify-center w-full h-full bg-card border border-border p-4">

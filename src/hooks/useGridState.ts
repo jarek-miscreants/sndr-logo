@@ -24,6 +24,16 @@ function cellKey(r: number, c: number): string {
   return `${r},${c}`;
 }
 
+export function bridgeKey(r1: number, c1: number, r2: number, c2: number): string {
+  // Normalize so smaller cell comes first
+  if (r1 < r2 || (r1 === r2 && c1 < c2)) return `${r1},${c1}-${r2},${c2}`;
+  return `${r2},${c2}-${r1},${c1}`;
+}
+
+function isDiagonal(r1: number, c1: number, r2: number, c2: number): boolean {
+  return Math.abs(r1 - r2) === 1 && Math.abs(c1 - c2) === 1;
+}
+
 function createEmptyGrid(rows: number, cols: number): boolean[][] {
   return Array.from({ length: rows }, () => Array(cols).fill(false));
 }
@@ -37,7 +47,7 @@ export function useGridState() {
   const [tool, setTool] = useState<Tool>('pencil');
   const [cornerRadius, setCornerRadius] = useState(0.25);
   const [innerRadius, setInnerRadius] = useState(0);
-  const [diagonalBridge, setDiagonalBridge] = useState(false);
+  const [bridges, setBridges] = useState<Set<string>>(new Set());
   const [bridgeRadius, setBridgeRadius] = useState(0.35);
 
   const [cellSettings, setCellSettings] = useState<CellSettingsMap>(new Map());
@@ -78,6 +88,7 @@ export function useGridState() {
       return createEmptyGrid(prev.length, prev[0]?.length || 0);
     });
     setCellSettings(new Map());
+    setBridges(new Set());
     setSelectedCell(null);
   }, [pushHistory]);
 
@@ -133,11 +144,54 @@ export function useGridState() {
     return cellSettings.get(cellKey(r, c));
   }, [cellSettings]);
 
+  const toggleBridge = useCallback((r1: number, c1: number, r2: number, c2: number) => {
+    const key = bridgeKey(r1, c1, r2, c2);
+    setBridges(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const removeBridge = useCallback((key: string) => {
+    setBridges(prev => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const getBridgesForCell = useCallback((r: number, c: number): string[] => {
+    const result: string[] = [];
+    bridges.forEach(key => {
+      if (key.includes(`${r},${c}`)) {
+        result.push(key);
+      }
+    });
+    return result;
+  }, [bridges]);
+
   const handleCellDown = useCallback((r: number, c: number) => {
     if (r < 0 || r >= gridRows || c < 0 || c >= gridCols) return;
 
     if (tool === 'edit') {
       if (grid[r][c]) {
+        // If we have a selected cell and the clicked cell is diagonal to it, toggle bridge
+        if (selectedCell && isDiagonal(selectedCell.r, selectedCell.c, r, c) && grid[r][c]) {
+          // Check that the two cells between are empty (proper diagonal)
+          const midR1 = selectedCell.r, midC1 = c;
+          const midR2 = r, midC2 = selectedCell.c;
+          const mid1Empty = !grid[midR1]?.[midC1];
+          const mid2Empty = !grid[midR2]?.[midC2];
+          if (mid1Empty && mid2Empty) {
+            toggleBridge(selectedCell.r, selectedCell.c, r, c);
+            return;
+          }
+        }
         setSelectedCell({ r, c });
       } else {
         setSelectedCell(null);
@@ -155,7 +209,7 @@ export function useGridState() {
       newGrid[r][c] = tool === 'pencil';
       setGrid(newGrid);
     }
-  }, [grid, gridRows, gridCols, tool, pushHistory]);
+  }, [grid, gridRows, gridCols, tool, pushHistory, selectedCell, toggleBridge]);
 
   const handleCellMove = useCallback((r: number, c: number) => {
     if (!drawingRef.current) return;
@@ -219,13 +273,15 @@ export function useGridState() {
       }
       return ng;
     });
+    setBridges(new Set());
   }, [grid, pushHistory]);
 
   return {
     grid, gridRows, gridCols, tool, cornerRadius, innerRadius, previewCells,
-    cellSettings, selectedCell, diagonalBridge, bridgeRadius,
+    cellSettings, selectedCell, bridges, bridgeRadius,
     setTool, setGridSize, setCornerRadius, setInnerRadius,
-    setSelectedCell, setDiagonalBridge, setBridgeRadius,
+    setSelectedCell, setBridgeRadius,
+    toggleBridge, removeBridge, getBridgesForCell,
     setCellCornerRadius, setCellInnerRadius, resetCellSettings, getCellSettings,
     clearGrid, undo, redo,
     generateRandomPattern,
