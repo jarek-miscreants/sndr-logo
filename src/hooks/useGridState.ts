@@ -45,10 +45,10 @@ function cloneGrid(grid: boolean[][]): boolean[][] {
 export function useGridState() {
   const [grid, setGrid] = useState(() => createEmptyGrid(4, 4));
   const [tool, setTool] = useState<Tool>('pencil');
-  const [cornerRadius, setCornerRadius] = useState(0.25);
-  const [innerRadius, setInnerRadius] = useState(0);
+  const [cornerRadius, setCornerRadius] = useState(0.5);
+  const [innerRadius, setInnerRadius] = useState(0.25);
   const [bridges, setBridges] = useState<Set<string>>(new Set());
-  const [bridgeRadius, setBridgeRadius] = useState(0.35);
+  const [bridgeRadius, setBridgeRadius] = useState(0.5);
 
   const [cellSettings, setCellSettings] = useState<CellSettingsMap>(new Map());
   const [selectedCell, setSelectedCell] = useState<{ r: number; c: number } | null>(null);
