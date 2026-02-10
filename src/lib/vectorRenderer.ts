@@ -335,7 +335,7 @@ export function generateSVGMarkup(
   const h = bounds.maxR - bounds.minR;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.minC} ${bounds.minR} ${w} ${h}" width="${w * 20}" height="${h * 20}">
-  <path d="${pathData}" fill="black" fill-rule="evenodd"/>
+  <path d="${pathData}" fill="black" fill-rule="nonzero"/>
 </svg>`;
 }
 
@@ -369,7 +369,7 @@ export function exportPNG(
   const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
 
   const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.minC} ${bounds.minR} ${bw} ${bh}" width="${width}" height="${height}">
-    <path d="${pathData}" fill="black" fill-rule="evenodd"/>
+    <path d="${pathData}" fill="black" fill-rule="nonzero"/>
   </svg>`;
 
   const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });

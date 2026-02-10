@@ -29,7 +29,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
           className="w-full h-full max-w-full max-h-full"
           preserveAspectRatio="xMidYMid meet"
         >
-          <path d={pathData} fill="hsl(var(--foreground))" fillRule="evenodd" />
+          <path d={pathData} fill="hsl(var(--foreground))" fillRule="nonzero" />
         </svg>
       ) : (
         <p className="text-muted-foreground text-sm select-none">
