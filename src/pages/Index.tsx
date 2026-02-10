@@ -45,12 +45,9 @@ const Index = () => {
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
       <Toolbar
         tool={state.tool}
-        gridRows={state.gridRows}
-        gridCols={state.gridCols}
         canUndo={state.canUndo}
         canRedo={state.canRedo}
         onToolChange={state.setTool}
-        onGridSizeChange={state.setGridSize}
         onUndo={state.undo}
         onRedo={state.redo}
         onClear={state.clearGrid}
@@ -68,6 +65,8 @@ const Index = () => {
             previewCells={state.previewCells}
             selectedCell={state.selectedCell}
             cellRadiusLookup={cellRadiusLookup}
+            diagonalBridge={state.diagonalBridge}
+            bridgeRadius={state.bridgeRadius}
             onCellDown={state.handleCellDown}
             onCellMove={state.handleCellMove}
             onCellUp={state.handleCellUp}
@@ -81,6 +80,8 @@ const Index = () => {
               cornerRadius={state.cornerRadius}
               innerRadius={state.innerRadius}
               cellRadiusLookup={cellRadiusLookup}
+              diagonalBridge={state.diagonalBridge}
+              bridgeRadius={state.bridgeRadius}
             />
           </div>
 
@@ -100,8 +101,12 @@ const Index = () => {
             grid={state.grid}
             cornerRadius={state.cornerRadius}
             innerRadius={state.innerRadius}
+            diagonalBridge={state.diagonalBridge}
+            bridgeRadius={state.bridgeRadius}
             onCornerRadiusChange={state.setCornerRadius}
             onInnerRadiusChange={state.setInnerRadius}
+            onDiagonalBridgeChange={state.setDiagonalBridge}
+            onBridgeRadiusChange={state.setBridgeRadius}
             cellRadiusLookup={cellRadiusLookup}
           />
         </div>

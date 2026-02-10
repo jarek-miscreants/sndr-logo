@@ -79,13 +79,75 @@ function traceContours(edges: Edge[]): Edge[][] {
   return contours;
 }
 
+function generateDiagonalBridgePaths(
+  grid: boolean[][],
+  bridgeRadius: number,
+  scaleX: number,
+  scaleY: number
+): string {
+  const rows = grid.length;
+  const cols = grid[0]?.length || 0;
+  const br = Math.min(Math.max(bridgeRadius, 0), 0.5);
+  if (br === 0) return '';
+
+  const parts: string[] = [];
+  const isFilled = (r: number, c: number) =>
+    r >= 0 && r < rows && c >= 0 && c < cols && grid[r][c];
+
+  // Check each interior vertex (vx, vy) where 4 cells meet
+  for (let vy = 1; vy < rows; vy++) {
+    for (let vx = 1; vx < cols; vx++) {
+      const tl = isFilled(vy - 1, vx - 1);
+      const tr = isFilled(vy - 1, vx);
+      const bl = isFilled(vy, vx - 1);
+      const br2 = isFilled(vy, vx);
+
+      // NW-SE diagonal: TL and BR filled, TR and BL empty
+      if (tl && br2 && !tr && !bl) {
+        // NE crescent
+        parts.push(
+          `M${round(vx * scaleX)} ${round(vy * scaleY)}` +
+          `L${round(vx * scaleX)} ${round((vy - br) * scaleY)}` +
+          `A${round(br * scaleX)} ${round(br * scaleY)} 0 0 1 ${round((vx + br) * scaleX)} ${round(vy * scaleY)}Z`
+        );
+        // SW crescent
+        parts.push(
+          `M${round(vx * scaleX)} ${round(vy * scaleY)}` +
+          `L${round((vx - br) * scaleX)} ${round(vy * scaleY)}` +
+          `A${round(br * scaleX)} ${round(br * scaleY)} 0 0 1 ${round(vx * scaleX)} ${round((vy + br) * scaleY)}Z`
+        );
+      }
+
+      // NE-SW diagonal: TR and BL filled, TL and BR empty
+      if (tr && bl && !tl && !br2) {
+        // NW crescent
+        parts.push(
+          `M${round(vx * scaleX)} ${round(vy * scaleY)}` +
+          `L${round(vx * scaleX)} ${round((vy - br) * scaleY)}` +
+          `A${round(br * scaleX)} ${round(br * scaleY)} 0 0 0 ${round((vx - br) * scaleX)} ${round(vy * scaleY)}Z`
+        );
+        // SE crescent
+        parts.push(
+          `M${round(vx * scaleX)} ${round(vy * scaleY)}` +
+          `L${round((vx + br) * scaleX)} ${round(vy * scaleY)}` +
+          `A${round(br * scaleX)} ${round(br * scaleY)} 0 0 0 ${round(vx * scaleX)} ${round((vy + br) * scaleY)}Z`
+        );
+      }
+    }
+  }
+
+  return parts.join(' ');
+}
+
 export function generateSVGPathData(
   grid: boolean[][],
   radius: number,
   scaleX: number = 1,
   scaleY: number = 1,
   innerRadius: number = 0,
-  cellRadiusLookup?: CellRadiusLookup
+  cellRadiusLookup?: CellRadiusLookup,
+  diagonalBridge: boolean = false,
+  bridgeRadius: number = 0.35
 ): string {
   const edges = findBoundaryEdges(grid);
   if (edges.length === 0) return '';
@@ -185,7 +247,14 @@ export function generateSVGPathData(
     pathParts.push(segs.join(' '));
   }
 
-  return pathParts.join(' ');
+  const mainPath = pathParts.join(' ');
+
+  if (diagonalBridge) {
+    const bridgePaths = generateDiagonalBridgePaths(grid, bridgeRadius, scaleX, scaleY);
+    return bridgePaths ? `${mainPath} ${bridgePaths}` : mainPath;
+  }
+
+  return mainPath;
 }
 
 export interface FilledBounds {
@@ -214,9 +283,11 @@ export function generateSVGMarkup(
   grid: boolean[][],
   radius: number,
   innerRadius: number = 0,
-  cellRadiusLookup?: CellRadiusLookup
+  cellRadiusLookup?: CellRadiusLookup,
+  diagonalBridge: boolean = false,
+  bridgeRadius: number = 0.35
 ): string {
-  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup);
+  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
   const bounds = getFilledBounds(grid);
   if (!bounds || !pathData) {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" width="20" height="20"></svg>`;
@@ -229,8 +300,8 @@ export function generateSVGMarkup(
 </svg>`;
 }
 
-export function exportSVG(grid: boolean[][], radius: number, innerRadius: number = 0, cellRadiusLookup?: CellRadiusLookup): void {
-  const markup = generateSVGMarkup(grid, radius, innerRadius, cellRadiusLookup);
+export function exportSVG(grid: boolean[][], radius: number, innerRadius: number = 0, cellRadiusLookup?: CellRadiusLookup, diagonalBridge: boolean = false, bridgeRadius: number = 0.35): void {
+  const markup = generateSVGMarkup(grid, radius, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
   const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -244,7 +315,9 @@ export function exportPNG(
   radius: number,
   innerRadius: number = 0,
   pixelScale: number = 1,
-  cellRadiusLookup?: CellRadiusLookup
+  cellRadiusLookup?: CellRadiusLookup,
+  diagonalBridge: boolean = false,
+  bridgeRadius: number = 0.35
 ): void {
   const bounds = getFilledBounds(grid);
   if (!bounds) return;
@@ -254,7 +327,7 @@ export function exportPNG(
   const aspect = bw / bh;
   const width = Math.round(aspect >= 1 ? baseSize * pixelScale : baseSize * pixelScale * aspect);
   const height = Math.round(aspect >= 1 ? baseSize * pixelScale / aspect : baseSize * pixelScale);
-  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup);
+  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
 
   const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.minC} ${bounds.minR} ${bw} ${bh}" width="${width}" height="${height}">
     <path d="${pathData}" fill="black" fill-rule="evenodd"/>
@@ -282,8 +355,8 @@ export function exportPNG(
   img.src = url;
 }
 
-export function copySVGToClipboard(grid: boolean[][], radius: number, innerRadius: number = 0, cellRadiusLookup?: CellRadiusLookup): Promise<void> {
-  const markup = generateSVGMarkup(grid, radius, innerRadius, cellRadiusLookup);
+export function copySVGToClipboard(grid: boolean[][], radius: number, innerRadius: number = 0, cellRadiusLookup?: CellRadiusLookup, diagonalBridge: boolean = false, bridgeRadius: number = 0.35): Promise<void> {
+  const markup = generateSVGMarkup(grid, radius, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
   return navigator.clipboard.writeText(markup);
 }
 

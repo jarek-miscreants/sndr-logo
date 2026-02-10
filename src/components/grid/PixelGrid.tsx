@@ -11,6 +11,8 @@ interface PixelGridProps {
   previewCells: { r: number; c: number }[];
   selectedCell: { r: number; c: number } | null;
   cellRadiusLookup?: CellRadiusLookup;
+  diagonalBridge: boolean;
+  bridgeRadius: number;
   onCellDown: (r: number, c: number) => void;
   onCellMove: (r: number, c: number) => void;
   onCellUp: () => void;
@@ -18,7 +20,7 @@ interface PixelGridProps {
 
 const PixelGrid: React.FC<PixelGridProps> = ({
   grid, gridRows, gridCols, cornerRadius, innerRadius, previewCells, selectedCell, cellRadiusLookup,
-  onCellDown, onCellMove, onCellUp,
+  diagonalBridge, bridgeRadius, onCellDown, onCellMove, onCellUp,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,7 +58,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    const pathData = generateSVGPathData(grid, cornerRadius, cellSize, cellSize, innerRadius, cellRadiusLookup);
+    const pathData = generateSVGPathData(grid, cornerRadius, cellSize, cellSize, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
     if (pathData) {
       ctx.fillStyle = '#1a1b2e';
       const path = new Path2D(pathData);
@@ -92,7 +94,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
       ctx.lineTo(canvasW, r * cellSize);
       ctx.stroke();
     }
-  }, [grid, gridRows, gridCols, cellSize, previewCells, cornerRadius, innerRadius, selectedCell, cellRadiusLookup]);
+  }, [grid, gridRows, gridCols, cellSize, previewCells, cornerRadius, innerRadius, selectedCell, cellRadiusLookup, diagonalBridge, bridgeRadius]);
 
   const getCoords = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current!.getBoundingClientRect();

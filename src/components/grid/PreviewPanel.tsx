@@ -7,17 +7,19 @@ interface PreviewPanelProps {
   cornerRadius: number;
   innerRadius: number;
   cellRadiusLookup?: CellRadiusLookup;
+  diagonalBridge: boolean;
+  bridgeRadius: number;
 }
 
 const PreviewPanel: React.FC<PreviewPanelProps> = ({
-  grid, cornerRadius, innerRadius, cellRadiusLookup,
+  grid, cornerRadius, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius,
 }) => {
   const { pathData, bounds } = useMemo(() => {
     const b = getFilledBounds(grid);
     if (!b) return { pathData: '', bounds: null };
-    const pd = generateSVGPathData(grid, cornerRadius, 1, 1, innerRadius, cellRadiusLookup);
+    const pd = generateSVGPathData(grid, cornerRadius, 1, 1, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
     return { pathData: pd, bounds: b };
-  }, [grid, cornerRadius, innerRadius, cellRadiusLookup]);
+  }, [grid, cornerRadius, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius]);
 
   return (
     <div className="flex items-center justify-center w-full h-full bg-card border border-border p-4">
