@@ -62,7 +62,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
     if (pathData) {
       ctx.fillStyle = '#1a1b2e';
       const path = new Path2D(pathData);
-      ctx.fill(path, 'evenodd');
+      ctx.fill(path, 'nonzero');
     }
 
     if (previewCells.length > 0) {
