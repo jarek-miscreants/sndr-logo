@@ -17,11 +17,7 @@ export interface GridPreset {
 }
 
 export const gridPresets: GridPreset[] = [
-  { label: '4×9', rows: 4, cols: 9 },
-  { label: '8×8', rows: 8, cols: 8 },
-  { label: '16×16', rows: 16, cols: 16 },
-  { label: '32×32', rows: 32, cols: 32 },
-  { label: '64×64', rows: 64, cols: 64 },
+  { label: '4×4', rows: 4, cols: 4 },
 ];
 
 function cellKey(r: number, c: number): string {
@@ -37,10 +33,12 @@ function cloneGrid(grid: boolean[][]): boolean[][] {
 }
 
 export function useGridState() {
-  const [grid, setGrid] = useState(() => createEmptyGrid(16, 16));
+  const [grid, setGrid] = useState(() => createEmptyGrid(4, 4));
   const [tool, setTool] = useState<Tool>('pencil');
   const [cornerRadius, setCornerRadius] = useState(0.25);
   const [innerRadius, setInnerRadius] = useState(0);
+  const [diagonalBridge, setDiagonalBridge] = useState(false);
+  const [bridgeRadius, setBridgeRadius] = useState(0.35);
 
   const [cellSettings, setCellSettings] = useState<CellSettingsMap>(new Map());
   const [selectedCell, setSelectedCell] = useState<{ r: number; c: number } | null>(null);
@@ -211,28 +209,23 @@ export function useGridState() {
   }, [tool, previewCells, gridRows, gridCols, pushHistory]);
 
   const generateRandomPattern = useCallback(() => {
-    const patternH = 4;
-    const patternW = 9;
-    const startR = Math.max(0, Math.floor((gridRows - patternH) / 2));
-    const startC = Math.max(0, Math.floor((gridCols - patternW) / 2));
-    
     pushHistory(grid);
     setGrid(prev => {
-      const ng = cloneGrid(prev);
-      for (let r = 0; r < patternH && startR + r < gridRows; r++) {
-        for (let c = 0; c < patternW && startC + c < gridCols; c++) {
-          ng[startR + r][startC + c] = Math.random() > 0.4;
+      const ng = createEmptyGrid(prev.length, prev[0]?.length || 0);
+      for (let r = 0; r < prev.length; r++) {
+        for (let c = 0; c < (prev[0]?.length || 0); c++) {
+          ng[r][c] = Math.random() > 0.4;
         }
       }
       return ng;
     });
-  }, [grid, gridRows, gridCols, pushHistory]);
+  }, [grid, pushHistory]);
 
   return {
     grid, gridRows, gridCols, tool, cornerRadius, innerRadius, previewCells,
-    cellSettings, selectedCell,
+    cellSettings, selectedCell, diagonalBridge, bridgeRadius,
     setTool, setGridSize, setCornerRadius, setInnerRadius,
-    setSelectedCell,
+    setSelectedCell, setDiagonalBridge, setBridgeRadius,
     setCellCornerRadius, setCellInnerRadius, resetCellSettings, getCellSettings,
     clearGrid, undo, redo,
     generateRandomPattern,

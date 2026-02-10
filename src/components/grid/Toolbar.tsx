@@ -1,19 +1,14 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Pencil, Eraser, Minus, Square, Undo2, Redo2, Trash2, MousePointer, Shuffle } from 'lucide-react';
 import type { Tool } from '@/hooks/useGridState';
-import { gridPresets } from '@/hooks/useGridState';
 
 interface ToolbarProps {
   tool: Tool;
-  gridRows: number;
-  gridCols: number;
   canUndo: boolean;
   canRedo: boolean;
   onToolChange: (tool: Tool) => void;
-  onGridSizeChange: (rows: number, cols: number) => void;
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
@@ -29,11 +24,9 @@ const tools: { id: Tool; icon: React.ElementType; label: string; shortcut: strin
 ];
 
 const Toolbar: React.FC<ToolbarProps> = ({
-  tool, gridRows, gridCols, canUndo, canRedo,
-  onToolChange, onGridSizeChange, onUndo, onRedo, onClear, onRandomPattern,
+  tool, canUndo, canRedo,
+  onToolChange, onUndo, onRedo, onClear, onRandomPattern,
 }) => {
-  const currentPresetValue = `${gridRows}x${gridCols}`;
-
   return (
     <div className="flex items-center gap-1 p-2 bg-card border-b border-border flex-wrap">
       <div className="flex items-center gap-0.5 mr-2">
@@ -56,22 +49,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
       <div className="h-6 w-px bg-border mx-1" />
 
-      <Select
-        value={currentPresetValue}
-        onValueChange={v => {
-          const preset = gridPresets.find(p => `${p.rows}x${p.cols}` === v);
-          if (preset) onGridSizeChange(preset.rows, preset.cols);
-        }}
-      >
-        <SelectTrigger className="w-24 h-9">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {gridPresets.map(p => (
-            <SelectItem key={p.label} value={`${p.rows}x${p.cols}`}>{p.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <span className="text-xs font-medium text-muted-foreground px-2">4×4</span>
 
       <div className="h-6 w-px bg-border mx-1" />
 
@@ -99,7 +77,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <Shuffle className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Random Pattern (4×9)</TooltipContent>
+        <TooltipContent>Random Pattern (4×4)</TooltipContent>
       </Tooltip>
 
       <Tooltip>
