@@ -135,45 +135,28 @@ function metaballBridge(
   ].join(' ');
 }
 
-function generateDiagonalBridgePaths(
-  grid: boolean[][],
+function generateBridgePathsForPairs(
+  bridges: Set<string>,
   bridgeRadius: number,
   scaleX: number,
   scaleY: number
 ): string {
-  const rows = grid.length;
-  const cols = grid[0]?.length || 0;
   const v = Math.min(Math.max(bridgeRadius * 2, 0.1), 1.0);
   const handleLenRate = 2.4;
   const cellR = 0.5;
-
   const parts: string[] = [];
-  const isFilled = (r: number, c: number) =>
-    r >= 0 && r < rows && c >= 0 && c < cols && grid[r][c];
 
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (!isFilled(r, c)) continue;
-      // Check SE diagonal
-      if (r + 1 < rows && c + 1 < cols && isFilled(r + 1, c + 1) && !isFilled(r, c + 1) && !isFilled(r + 1, c)) {
-        const path = metaballBridge(
-          c + 0.5, r + 0.5, cellR,
-          c + 1.5, r + 1.5, cellR,
-          v, handleLenRate, scaleX, scaleY
-        );
-        if (path) parts.push(path);
-      }
-      // Check SW diagonal
-      if (r + 1 < rows && c - 1 >= 0 && isFilled(r + 1, c - 1) && !isFilled(r, c - 1) && !isFilled(r + 1, c)) {
-        const path = metaballBridge(
-          c + 0.5, r + 0.5, cellR,
-          c - 0.5, r + 1.5, cellR,
-          v, handleLenRate, scaleX, scaleY
-        );
-        if (path) parts.push(path);
-      }
-    }
-  }
+  bridges.forEach(key => {
+    const [a, b] = key.split('-');
+    const [r1, c1] = a.split(',').map(Number);
+    const [r2, c2] = b.split(',').map(Number);
+    const path = metaballBridge(
+      c1 + 0.5, r1 + 0.5, cellR,
+      c2 + 0.5, r2 + 0.5, cellR,
+      v, handleLenRate, scaleX, scaleY
+    );
+    if (path) parts.push(path);
+  });
 
   return parts.join(' ');
 }
@@ -287,12 +270,13 @@ export function generateSVGPathData(
 }
 
 export function generateBridgePathData(
-  grid: boolean[][],
+  bridges: Set<string>,
   bridgeRadius: number,
   scaleX: number = 1,
   scaleY: number = 1
 ): string {
-  return generateDiagonalBridgePaths(grid, bridgeRadius, scaleX, scaleY);
+  if (bridges.size === 0) return '';
+  return generateBridgePathsForPairs(bridges, bridgeRadius, scaleX, scaleY);
 }
 
 export interface FilledBounds {
@@ -322,7 +306,7 @@ export function generateSVGMarkup(
   radius: number,
   innerRadius: number = 0,
   cellRadiusLookup?: CellRadiusLookup,
-  diagonalBridge: boolean = false,
+  bridges?: Set<string>,
   bridgeRadius: number = 0.35
 ): string {
   const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup);
@@ -332,15 +316,15 @@ export function generateSVGMarkup(
   }
   const w = bounds.maxC - bounds.minC;
   const h = bounds.maxR - bounds.minR;
-  const bridgePath = diagonalBridge ? generateBridgePathData(grid, bridgeRadius) : '';
+  const bridgePath = bridges && bridges.size > 0 ? generateBridgePathData(bridges, bridgeRadius) : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.minC} ${bounds.minR} ${w} ${h}" width="${w * 20}" height="${h * 20}">
   <path d="${pathData}" fill="black"/>
 ${bridgePath ? `  <path d="${bridgePath}" fill="black"/>\n` : ''}</svg>`;
 }
 
-export function exportSVG(grid: boolean[][], radius: number, innerRadius: number = 0, cellRadiusLookup?: CellRadiusLookup, diagonalBridge: boolean = false, bridgeRadius: number = 0.35): void {
-  const markup = generateSVGMarkup(grid, radius, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
+export function exportSVG(grid: boolean[][], radius: number, innerRadius: number = 0, cellRadiusLookup?: CellRadiusLookup, bridges?: Set<string>, bridgeRadius: number = 0.35): void {
+  const markup = generateSVGMarkup(grid, radius, innerRadius, cellRadiusLookup, bridges, bridgeRadius);
   const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -355,7 +339,7 @@ export function exportPNG(
   innerRadius: number = 0,
   pixelScale: number = 1,
   cellRadiusLookup?: CellRadiusLookup,
-  diagonalBridge: boolean = false,
+  bridges?: Set<string>,
   bridgeRadius: number = 0.35
 ): void {
   const bounds = getFilledBounds(grid);
@@ -367,7 +351,7 @@ export function exportPNG(
   const width = Math.round(aspect >= 1 ? baseSize * pixelScale : baseSize * pixelScale * aspect);
   const height = Math.round(aspect >= 1 ? baseSize * pixelScale / aspect : baseSize * pixelScale);
   const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup);
-  const bridgePath = diagonalBridge ? generateBridgePathData(grid, bridgeRadius) : '';
+  const bridgePath = bridges && bridges.size > 0 ? generateBridgePathData(bridges, bridgeRadius) : '';
 
   const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.minC} ${bounds.minR} ${bw} ${bh}" width="${width}" height="${height}">
     <path d="${pathData}" fill="black"/>
@@ -395,8 +379,8 @@ ${bridgePath ? `    <path d="${bridgePath}" fill="black"/>\n` : ''}  </svg>`;
   img.src = url;
 }
 
-export function copySVGToClipboard(grid: boolean[][], radius: number, innerRadius: number = 0, cellRadiusLookup?: CellRadiusLookup, diagonalBridge: boolean = false, bridgeRadius: number = 0.35): Promise<void> {
-  const markup = generateSVGMarkup(grid, radius, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
+export function copySVGToClipboard(grid: boolean[][], radius: number, innerRadius: number = 0, cellRadiusLookup?: CellRadiusLookup, bridges?: Set<string>, bridgeRadius: number = 0.35): Promise<void> {
+  const markup = generateSVGMarkup(grid, radius, innerRadius, cellRadiusLookup, bridges, bridgeRadius);
   return navigator.clipboard.writeText(markup);
 }
 

@@ -11,7 +11,7 @@ interface PixelGridProps {
   previewCells: { r: number; c: number }[];
   selectedCell: { r: number; c: number } | null;
   cellRadiusLookup?: CellRadiusLookup;
-  diagonalBridge: boolean;
+  bridges: Set<string>;
   bridgeRadius: number;
   onCellDown: (r: number, c: number) => void;
   onCellMove: (r: number, c: number) => void;
@@ -20,7 +20,7 @@ interface PixelGridProps {
 
 const PixelGrid: React.FC<PixelGridProps> = ({
   grid, gridRows, gridCols, cornerRadius, innerRadius, previewCells, selectedCell, cellRadiusLookup,
-  diagonalBridge, bridgeRadius, onCellDown, onCellMove, onCellUp,
+  bridges, bridgeRadius, onCellDown, onCellMove, onCellUp,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -65,8 +65,8 @@ const PixelGrid: React.FC<PixelGridProps> = ({
       ctx.fill(path);
     }
 
-    if (diagonalBridge) {
-      const bridgeData = generateBridgePathData(grid, bridgeRadius, cellSize, cellSize);
+    if (bridges.size > 0) {
+      const bridgeData = generateBridgePathData(bridges, bridgeRadius, cellSize, cellSize);
       if (bridgeData) {
         ctx.fillStyle = '#1a1b2e';
         const bridgePath = new Path2D(bridgeData);
@@ -87,6 +87,24 @@ const PixelGrid: React.FC<PixelGridProps> = ({
       ctx.strokeStyle = '#569378';
       ctx.lineWidth = 2;
       ctx.strokeRect(selectedCell.c * cellSize + 1, selectedCell.r * cellSize + 1, cellSize - 2, cellSize - 2);
+
+      // Highlight diagonal neighbors as potential bridge targets
+      const diags = [[-1,-1],[-1,1],[1,-1],[1,1]];
+      for (const [dr, dc] of diags) {
+        const nr = selectedCell.r + dr;
+        const nc = selectedCell.c + dc;
+        if (nr >= 0 && nr < gridRows && nc >= 0 && nc < gridCols && grid[nr][nc]) {
+          const midR1 = selectedCell.r, midC1 = nc;
+          const midR2 = nr, midC2 = selectedCell.c;
+          if (!grid[midR1]?.[midC1] && !grid[midR2]?.[midC2]) {
+            ctx.strokeStyle = 'rgba(86, 147, 120, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.strokeRect(nc * cellSize + 1, nr * cellSize + 1, cellSize - 2, cellSize - 2);
+            ctx.setLineDash([]);
+          }
+        }
+      }
     }
 
     ctx.strokeStyle = '#e0e0e6';
@@ -103,7 +121,7 @@ const PixelGrid: React.FC<PixelGridProps> = ({
       ctx.lineTo(canvasW, r * cellSize);
       ctx.stroke();
     }
-  }, [grid, gridRows, gridCols, cellSize, previewCells, cornerRadius, innerRadius, selectedCell, cellRadiusLookup, diagonalBridge, bridgeRadius]);
+  }, [grid, gridRows, gridCols, cellSize, previewCells, cornerRadius, innerRadius, selectedCell, cellRadiusLookup, bridges, bridgeRadius]);
 
   const getCoords = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current!.getBoundingClientRect();
