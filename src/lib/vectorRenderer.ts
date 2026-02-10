@@ -79,6 +79,62 @@ function traceContours(edges: Edge[]): Edge[][] {
   return contours;
 }
 
+function metaballBridge(
+  cx1: number, cy1: number, r1: number,
+  cx2: number, cy2: number, r2: number,
+  v: number, handleLenRate: number,
+  scaleX: number, scaleY: number
+): string {
+  const dx = cx2 - cx1;
+  const dy = cy2 - cy1;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  if (d === 0) return '';
+
+  let u1: number, u2: number;
+  if (d < r1 + r2) {
+    u1 = Math.acos(Math.min(1, Math.max(-1, (r1 * r1 + d * d - r2 * r2) / (2 * r1 * d))));
+    u2 = Math.acos(Math.min(1, Math.max(-1, (r2 * r2 + d * d - r1 * r1) / (2 * r2 * d))));
+  } else {
+    u1 = 0;
+    u2 = 0;
+  }
+
+  const angle1 = Math.atan2(dy, dx);
+  const angle2 = Math.acos(Math.min(1, Math.max(-1, (r1 - r2) / d)));
+  const pi2 = Math.PI / 2;
+
+  const angle1a = angle1 + u1 + (angle2 - u1) * v;
+  const angle1b = angle1 - u1 - (angle2 - u1) * v;
+  const angle2a = angle1 + Math.PI - u2 - (Math.PI - u2 - angle2) * v;
+  const angle2b = angle1 - Math.PI + u2 + (Math.PI - u2 - angle2) * v;
+
+  const p1a = { x: cx1 + Math.cos(angle1a) * r1, y: cy1 + Math.sin(angle1a) * r1 };
+  const p1b = { x: cx1 + Math.cos(angle1b) * r1, y: cy1 + Math.sin(angle1b) * r1 };
+  const p2a = { x: cx2 + Math.cos(angle2a) * r2, y: cy2 + Math.sin(angle2a) * r2 };
+  const p2b = { x: cx2 + Math.cos(angle2b) * r2, y: cy2 + Math.sin(angle2b) * r2 };
+
+  const totalRadius = r1 + r2;
+  const dist1a2a = Math.sqrt((p1a.x - p2a.x) ** 2 + (p1a.y - p2a.y) ** 2);
+  let d2 = Math.min(v * handleLenRate, dist1a2a / totalRadius);
+  d2 *= Math.min(1, d * 2 / totalRadius);
+
+  const hr1 = r1 * d2;
+  const hr2 = r2 * d2;
+
+  const h0out = { x: Math.cos(angle1a - pi2) * hr1, y: Math.sin(angle1a - pi2) * hr1 };
+  const h1in  = { x: Math.cos(angle2a + pi2) * hr2, y: Math.sin(angle2a + pi2) * hr2 };
+  const h2out = { x: Math.cos(angle2b - pi2) * hr2, y: Math.sin(angle2b - pi2) * hr2 };
+  const h3in  = { x: Math.cos(angle1b + pi2) * hr1, y: Math.sin(angle1b + pi2) * hr1 };
+
+  return [
+    `M${round(p1a.x * scaleX)} ${round(p1a.y * scaleY)}`,
+    `C${round((p1a.x + h0out.x) * scaleX)} ${round((p1a.y + h0out.y) * scaleY)} ${round((p2a.x + h1in.x) * scaleX)} ${round((p2a.y + h1in.y) * scaleY)} ${round(p2a.x * scaleX)} ${round(p2a.y * scaleY)}`,
+    `L${round(p2b.x * scaleX)} ${round(p2b.y * scaleY)}`,
+    `C${round((p2b.x + h2out.x) * scaleX)} ${round((p2b.y + h2out.y) * scaleY)} ${round((p1b.x + h3in.x) * scaleX)} ${round((p1b.y + h3in.y) * scaleY)} ${round(p1b.x * scaleX)} ${round(p1b.y * scaleY)}`,
+    'Z'
+  ].join(' ');
+}
+
 function generateDiagonalBridgePaths(
   grid: boolean[][],
   bridgeRadius: number,
@@ -87,51 +143,34 @@ function generateDiagonalBridgePaths(
 ): string {
   const rows = grid.length;
   const cols = grid[0]?.length || 0;
-  const br = Math.min(Math.max(bridgeRadius, 0), 0.5);
-  if (br === 0) return '';
+  const v = Math.min(Math.max(bridgeRadius * 2, 0.1), 1.0);
+  const handleLenRate = 2.4;
+  const cellR = 0.5;
 
   const parts: string[] = [];
   const isFilled = (r: number, c: number) =>
     r >= 0 && r < rows && c >= 0 && c < cols && grid[r][c];
 
-  // Check each interior vertex (vx, vy) where 4 cells meet
-  for (let vy = 1; vy < rows; vy++) {
-    for (let vx = 1; vx < cols; vx++) {
-      const tl = isFilled(vy - 1, vx - 1);
-      const tr = isFilled(vy - 1, vx);
-      const bl = isFilled(vy, vx - 1);
-      const br2 = isFilled(vy, vx);
-
-      // NW-SE diagonal: TL and BR filled, TR and BL empty
-      if (tl && br2 && !tr && !bl) {
-        // NE crescent
-        parts.push(
-          `M${round(vx * scaleX)} ${round(vy * scaleY)}` +
-          `L${round(vx * scaleX)} ${round((vy - br) * scaleY)}` +
-          `A${round(br * scaleX)} ${round(br * scaleY)} 0 0 1 ${round((vx + br) * scaleX)} ${round(vy * scaleY)}Z`
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (!isFilled(r, c)) continue;
+      // Check SE diagonal
+      if (r + 1 < rows && c + 1 < cols && isFilled(r + 1, c + 1) && !isFilled(r, c + 1) && !isFilled(r + 1, c)) {
+        const path = metaballBridge(
+          c + 0.5, r + 0.5, cellR,
+          c + 1.5, r + 1.5, cellR,
+          v, handleLenRate, scaleX, scaleY
         );
-        // SW crescent
-        parts.push(
-          `M${round(vx * scaleX)} ${round(vy * scaleY)}` +
-          `L${round((vx - br) * scaleX)} ${round(vy * scaleY)}` +
-          `A${round(br * scaleX)} ${round(br * scaleY)} 0 0 1 ${round(vx * scaleX)} ${round((vy + br) * scaleY)}Z`
-        );
+        if (path) parts.push(path);
       }
-
-      // NE-SW diagonal: TR and BL filled, TL and BR empty
-      if (tr && bl && !tl && !br2) {
-        // NW crescent
-        parts.push(
-          `M${round(vx * scaleX)} ${round(vy * scaleY)}` +
-          `L${round(vx * scaleX)} ${round((vy - br) * scaleY)}` +
-          `A${round(br * scaleX)} ${round(br * scaleY)} 0 0 0 ${round((vx - br) * scaleX)} ${round(vy * scaleY)}Z`
+      // Check SW diagonal
+      if (r + 1 < rows && c - 1 >= 0 && isFilled(r + 1, c - 1) && !isFilled(r, c - 1) && !isFilled(r + 1, c)) {
+        const path = metaballBridge(
+          c + 0.5, r + 0.5, cellR,
+          c - 0.5, r + 1.5, cellR,
+          v, handleLenRate, scaleX, scaleY
         );
-        // SE crescent
-        parts.push(
-          `M${round(vx * scaleX)} ${round(vy * scaleY)}` +
-          `L${round((vx + br) * scaleX)} ${round(vy * scaleY)}` +
-          `A${round(br * scaleX)} ${round(br * scaleY)} 0 0 0 ${round(vx * scaleX)} ${round((vy + br) * scaleY)}Z`
-        );
+        if (path) parts.push(path);
       }
     }
   }
