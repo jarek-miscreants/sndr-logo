@@ -53,8 +53,8 @@ export function useGridState() {
   const [cellSettings, setCellSettings] = useState<CellSettingsMap>(new Map());
   const [selectedCell, setSelectedCell] = useState<{ r: number; c: number } | null>(null);
 
-  const [history, setHistory] = useState<boolean[][][]>([]);
-  const [future, setFuture] = useState<boolean[][][]>([]);
+  const [history, setHistory] = useState<{ grid: boolean[][]; bridges: Set<string> }[]>([]);
+  const [future, setFuture] = useState<{ grid: boolean[][]; bridges: Set<string> }[]>([]);
 
   const [previewCells, setPreviewCells] = useState<{ r: number; c: number }[]>([]);
   const drawingRef = useRef(false);
@@ -64,8 +64,8 @@ export function useGridState() {
   const gridRows = grid.length;
   const gridCols = grid[0]?.length || 0;
 
-  const pushHistory = useCallback((g: boolean[][]) => {
-    setHistory(h => [...h.slice(-50), g]);
+  const pushHistory = useCallback((g: boolean[][], b: Set<string>) => {
+    setHistory(h => [...h.slice(-50), { grid: g, bridges: new Set(b) }]);
     setFuture([]);
   }, []);
 
@@ -77,40 +77,42 @@ export function useGridState() {
       for (let r = 0; r < minR; r++)
         for (let c = 0; c < minC; c++)
           newGrid[r][c] = prev[r][c];
-      pushHistory(prev);
+      pushHistory(prev, bridges);
       return newGrid;
     });
-  }, [pushHistory]);
+  }, [pushHistory, bridges]);
 
   const clearGrid = useCallback(() => {
     setGrid(prev => {
-      pushHistory(prev);
+      pushHistory(prev, bridges);
       return createEmptyGrid(prev.length, prev[0]?.length || 0);
     });
     setCellSettings(new Map());
     setBridges(new Set());
     setSelectedCell(null);
-  }, [pushHistory]);
+  }, [pushHistory, bridges]);
 
   const undo = useCallback(() => {
     setHistory(h => {
       if (h.length === 0) return h;
       const prev = h[h.length - 1];
-      setFuture(f => [...f, grid]);
-      setGrid(prev);
+      setFuture(f => [...f, { grid, bridges }]);
+      setGrid(prev.grid);
+      setBridges(prev.bridges);
       return h.slice(0, -1);
     });
-  }, [grid]);
+  }, [grid, bridges]);
 
   const redo = useCallback(() => {
     setFuture(f => {
       if (f.length === 0) return f;
       const next = f[f.length - 1];
-      setHistory(h => [...h, grid]);
-      setGrid(next);
+      setHistory(h => [...h, { grid, bridges }]);
+      setGrid(next.grid);
+      setBridges(next.bridges);
       return f.slice(0, -1);
     });
-  }, [grid]);
+  }, [grid, bridges]);
 
   const setCellCornerRadius = useCallback((r: number, c: number, value: number) => {
     setCellSettings(prev => {
@@ -188,6 +190,7 @@ export function useGridState() {
           const mid1Empty = !grid[midR1]?.[midC1];
           const mid2Empty = !grid[midR2]?.[midC2];
           if (mid1Empty && mid2Empty) {
+            pushHistory(grid, bridges);
             toggleBridge(selectedCell.r, selectedCell.c, r, c);
             return;
           }
@@ -204,12 +207,12 @@ export function useGridState() {
     snapshotRef.current = cloneGrid(grid);
 
     if (tool === 'pencil' || tool === 'eraser') {
-      pushHistory(grid);
+      pushHistory(grid, bridges);
       const newGrid = cloneGrid(grid);
       newGrid[r][c] = tool === 'pencil';
       setGrid(newGrid);
     }
-  }, [grid, gridRows, gridCols, tool, pushHistory, selectedCell, toggleBridge]);
+  }, [grid, gridRows, gridCols, tool, pushHistory, selectedCell, toggleBridge, bridges]);
 
   const handleCellMove = useCallback((r: number, c: number) => {
     if (!drawingRef.current) return;
@@ -245,7 +248,7 @@ export function useGridState() {
     drawingRef.current = false;
 
     if ((tool === 'line' || tool === 'rectangle') && previewCells.length > 0 && snapshotRef.current) {
-      pushHistory(snapshotRef.current);
+      pushHistory(snapshotRef.current, bridges);
       setGrid(prev => {
         const ng = cloneGrid(prev);
         for (const { r, c } of previewCells) {
@@ -260,10 +263,10 @@ export function useGridState() {
 
     drawStartRef.current = null;
     snapshotRef.current = null;
-  }, [tool, previewCells, gridRows, gridCols, pushHistory]);
+  }, [tool, previewCells, gridRows, gridCols, pushHistory, bridges]);
 
   const generateRandomPattern = useCallback(() => {
-    pushHistory(grid);
+    pushHistory(grid, bridges);
     setGrid(prev => {
       const ng = createEmptyGrid(prev.length, prev[0]?.length || 0);
       for (let r = 0; r < prev.length; r++) {
@@ -274,7 +277,7 @@ export function useGridState() {
       return ng;
     });
     setBridges(new Set());
-  }, [grid, pushHistory]);
+  }, [grid, bridges, pushHistory]);
 
   return {
     grid, gridRows, gridCols, tool, cornerRadius, innerRadius, previewCells,
