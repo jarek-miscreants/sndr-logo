@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { generateSVGPathData, getFilledBounds } from '@/lib/vectorRenderer';
+import { generateSVGPathData, generateBridgePathData, getFilledBounds } from '@/lib/vectorRenderer';
 import type { CellRadiusLookup } from '@/lib/vectorRenderer';
 
 interface PreviewPanelProps {
@@ -14,11 +14,12 @@ interface PreviewPanelProps {
 const PreviewPanel: React.FC<PreviewPanelProps> = ({
   grid, cornerRadius, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius,
 }) => {
-  const { pathData, bounds } = useMemo(() => {
+  const { pathData, bridgeData, bounds } = useMemo(() => {
     const b = getFilledBounds(grid);
-    if (!b) return { pathData: '', bounds: null };
-    const pd = generateSVGPathData(grid, cornerRadius, 1, 1, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
-    return { pathData: pd, bounds: b };
+    if (!b) return { pathData: '', bridgeData: '', bounds: null };
+    const pd = generateSVGPathData(grid, cornerRadius, 1, 1, innerRadius, cellRadiusLookup);
+    const bd = diagonalBridge ? generateBridgePathData(grid, bridgeRadius) : '';
+    return { pathData: pd, bridgeData: bd, bounds: b };
   }, [grid, cornerRadius, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius]);
 
   return (
@@ -29,7 +30,8 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
           className="w-full h-full max-w-full max-h-full"
           preserveAspectRatio="xMidYMid meet"
         >
-          <path d={pathData} fill="hsl(var(--foreground))" fillRule="nonzero" />
+          <path d={pathData} fill="hsl(var(--foreground))" />
+          {bridgeData && <path d={bridgeData} fill="hsl(var(--foreground))" />}
         </svg>
       ) : (
         <p className="text-muted-foreground text-sm select-none">

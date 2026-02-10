@@ -185,8 +185,6 @@ export function generateSVGPathData(
   scaleY: number = 1,
   innerRadius: number = 0,
   cellRadiusLookup?: CellRadiusLookup,
-  diagonalBridge: boolean = false,
-  bridgeRadius: number = 0.35
 ): string {
   const edges = findBoundaryEdges(grid);
   if (edges.length === 0) return '';
@@ -228,7 +226,6 @@ export function generateSVGPathData(
           const s1 = cellRadiusLookup(c.cell.r, c.cell.c);
           return Math.min(Math.max(s1.cornerRadius, 0), 0.5);
         } else {
-          // For concave corners, check all 4 cells around the vertex
           const vx = c.vertex.x;
           const vy = c.vertex.y;
           const adjacentCells = [
@@ -286,14 +283,16 @@ export function generateSVGPathData(
     pathParts.push(segs.join(' '));
   }
 
-  const mainPath = pathParts.join(' ');
+  return pathParts.join(' ');
+}
 
-  if (diagonalBridge) {
-    const bridgePaths = generateDiagonalBridgePaths(grid, bridgeRadius, scaleX, scaleY);
-    return bridgePaths ? `${mainPath} ${bridgePaths}` : mainPath;
-  }
-
-  return mainPath;
+export function generateBridgePathData(
+  grid: boolean[][],
+  bridgeRadius: number,
+  scaleX: number = 1,
+  scaleY: number = 1
+): string {
+  return generateDiagonalBridgePaths(grid, bridgeRadius, scaleX, scaleY);
 }
 
 export interface FilledBounds {
@@ -326,17 +325,18 @@ export function generateSVGMarkup(
   diagonalBridge: boolean = false,
   bridgeRadius: number = 0.35
 ): string {
-  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
+  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup);
   const bounds = getFilledBounds(grid);
   if (!bounds || !pathData) {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" width="20" height="20"></svg>`;
   }
   const w = bounds.maxC - bounds.minC;
   const h = bounds.maxR - bounds.minR;
+  const bridgePath = diagonalBridge ? generateBridgePathData(grid, bridgeRadius) : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.minC} ${bounds.minR} ${w} ${h}" width="${w * 20}" height="${h * 20}">
-  <path d="${pathData}" fill="black" fill-rule="nonzero"/>
-</svg>`;
+  <path d="${pathData}" fill="black"/>
+${bridgePath ? `  <path d="${bridgePath}" fill="black"/>\n` : ''}</svg>`;
 }
 
 export function exportSVG(grid: boolean[][], radius: number, innerRadius: number = 0, cellRadiusLookup?: CellRadiusLookup, diagonalBridge: boolean = false, bridgeRadius: number = 0.35): void {
@@ -366,11 +366,12 @@ export function exportPNG(
   const aspect = bw / bh;
   const width = Math.round(aspect >= 1 ? baseSize * pixelScale : baseSize * pixelScale * aspect);
   const height = Math.round(aspect >= 1 ? baseSize * pixelScale / aspect : baseSize * pixelScale);
-  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
+  const pathData = generateSVGPathData(grid, radius, 1, 1, innerRadius, cellRadiusLookup);
+  const bridgePath = diagonalBridge ? generateBridgePathData(grid, bridgeRadius) : '';
 
   const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.minC} ${bounds.minR} ${bw} ${bh}" width="${width}" height="${height}">
-    <path d="${pathData}" fill="black" fill-rule="nonzero"/>
-  </svg>`;
+    <path d="${pathData}" fill="black"/>
+${bridgePath ? `    <path d="${bridgePath}" fill="black"/>\n` : ''}  </svg>`;
 
   const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
