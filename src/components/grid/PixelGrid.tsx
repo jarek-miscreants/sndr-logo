@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { generateSVGPathData } from '@/lib/vectorRenderer';
+import { generateSVGPathData, generateBridgePathData } from '@/lib/vectorRenderer';
 import type { CellRadiusLookup } from '@/lib/vectorRenderer';
 
 interface PixelGridProps {
@@ -58,11 +58,20 @@ const PixelGrid: React.FC<PixelGridProps> = ({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    const pathData = generateSVGPathData(grid, cornerRadius, cellSize, cellSize, innerRadius, cellRadiusLookup, diagonalBridge, bridgeRadius);
+    const pathData = generateSVGPathData(grid, cornerRadius, cellSize, cellSize, innerRadius, cellRadiusLookup);
     if (pathData) {
       ctx.fillStyle = '#1a1b2e';
       const path = new Path2D(pathData);
-      ctx.fill(path, 'nonzero');
+      ctx.fill(path);
+    }
+
+    if (diagonalBridge) {
+      const bridgeData = generateBridgePathData(grid, bridgeRadius, cellSize, cellSize);
+      if (bridgeData) {
+        ctx.fillStyle = '#1a1b2e';
+        const bridgePath = new Path2D(bridgeData);
+        ctx.fill(bridgePath);
+      }
     }
 
     if (previewCells.length > 0) {
